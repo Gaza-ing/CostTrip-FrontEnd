@@ -1,26 +1,154 @@
 @import 'tailwindcss';
 
+/* ============================================
+   CostTrip Design Tokens
+   Source: docs/spec/design/costtrip.tokens.json
+   ============================================ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand */
+  --color-brand: #4c6fff;
+  --color-brand-dark: #3a57e0;
+  --color-brand-soft: #eaefff;
+  --color-brand-tint: #f2f5ff;
+
+  /* Semantic */
+  --color-ok: #16a34a;
+  --color-ok-soft: #e7f6ec;
+  --color-ok-text: #11833b;
+  --color-warn: #f59e0b;
+  --color-warn-soft: #fef3dd;
+  --color-warn-text: #b0730a;
+  --color-danger: #ef4444;
+  --color-danger-soft: #fdecec;
+  --color-danger-text: #c8302f;
+
+  /* Surface */
+  --color-surface-bg: #f5f7fa;
+  --color-surface-bg-alt: #eef1f6;
+  --color-surface-card: #ffffff;
+  --color-surface-card-2: #fafbfd;
+  --color-surface-line: #e7ebf1;
+  --color-surface-line-strong: #d7dde7;
+
+  /* Text */
+  --color-ink: #1a2030;
+  --color-ink-2: #5a6377;
+  --color-ink-3: #929aac;
+  --color-on-brand: #ffffff;
+
+  /* Category */
+  --color-cat-stay: #6366f1;
+  --color-cat-stay-soft: #ecedfe;
+  --color-cat-move: #0ea5e9;
+  --color-cat-move-soft: #e4f4fd;
+  --color-cat-food: #f97316;
+  --color-cat-food-soft: #fdeee2;
+  --color-cat-tour: #10b981;
+  --color-cat-tour-soft: #e3f6ef;
+  --color-cat-shop: #ec4899;
+  --color-cat-shop-soft: #fce8f2;
+  --color-cat-etc: #8b96ab;
+  --color-cat-etc-soft: #eef0f4;
+
+  /* Member */
+  --color-member-blue: #4c6fff;
+  --color-member-blue-soft: #e7ecff;
+  --color-member-green: #16a34a;
+  --color-member-green-soft: #e2f4e8;
+  --color-member-orange: #f97316;
+  --color-member-orange-soft: #fceadd;
+  --color-member-purple: #8b5cf6;
+  --color-member-purple-soft: #efe9fe;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(20, 30, 55, 0.05);
+  --shadow-base: 0 4px 16px rgba(20, 30, 55, 0.07);
+  --shadow-md: 0 8px 28px rgba(20, 30, 55, 0.1);
+  --shadow-up: 0 -6px 24px rgba(20, 30, 55, 0.1);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Colors */
+  --color-brand: var(--color-brand);
+  --color-brand-dark: var(--color-brand-dark);
+  --color-brand-soft: var(--color-brand-soft);
+  --color-brand-tint: var(--color-brand-tint);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-ok: var(--color-ok);
+  --color-ok-soft: var(--color-ok-soft);
+  --color-ok-text: var(--color-ok-text);
+  --color-warn: var(--color-warn);
+  --color-warn-soft: var(--color-warn-soft);
+  --color-warn-text: var(--color-warn-text);
+  --color-danger: var(--color-danger);
+  --color-danger-soft: var(--color-danger-soft);
+  --color-danger-text: var(--color-danger-text);
+
+  --color-surface-bg: var(--color-surface-bg);
+  --color-surface-bg-alt: var(--color-surface-bg-alt);
+  --color-surface-card: var(--color-surface-card);
+  --color-surface-card-2: var(--color-surface-card-2);
+  --color-surface-line: var(--color-surface-line);
+  --color-surface-line-strong: var(--color-surface-line-strong);
+
+  --color-ink: var(--color-ink);
+  --color-ink-2: var(--color-ink-2);
+  --color-ink-3: var(--color-ink-3);
+  --color-on-brand: var(--color-on-brand);
+
+  --color-cat-stay: var(--color-cat-stay);
+  --color-cat-stay-soft: var(--color-cat-stay-soft);
+  --color-cat-move: var(--color-cat-move);
+  --color-cat-move-soft: var(--color-cat-move-soft);
+  --color-cat-food: var(--color-cat-food);
+  --color-cat-food-soft: var(--color-cat-food-soft);
+  --color-cat-tour: var(--color-cat-tour);
+  --color-cat-tour-soft: var(--color-cat-tour-soft);
+  --color-cat-shop: var(--color-cat-shop);
+  --color-cat-shop-soft: var(--color-cat-shop-soft);
+  --color-cat-etc: var(--color-cat-etc);
+  --color-cat-etc-soft: var(--color-cat-etc-soft);
+
+  --color-member-blue: var(--color-member-blue);
+  --color-member-blue-soft: var(--color-member-blue-soft);
+  --color-member-green: var(--color-member-green);
+  --color-member-green-soft: var(--color-member-green-soft);
+  --color-member-orange: var(--color-member-orange);
+  --color-member-orange-soft: var(--color-member-orange-soft);
+  --color-member-purple: var(--color-member-purple);
+  --color-member-purple-soft: var(--color-member-purple-soft);
+
+  /* Border Radius */
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  /* Spacing */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+
+  /* Shadow */
+  --shadow-sm: var(--shadow-sm);
+  --shadow-base: var(--shadow-base);
+  --shadow-md: var(--shadow-md);
+  --shadow-up: var(--shadow-up);
+
+  /* Font */
+  --font-sans:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-surface-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
 }
