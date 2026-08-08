@@ -15,9 +15,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
+          cache: "npm"
 
-      - run: npm install
+      - name: Install dependencies
+        run: |
+          rm -f package-lock.json
+          npm install
 
       - name: Lint
         run: npm run lint
