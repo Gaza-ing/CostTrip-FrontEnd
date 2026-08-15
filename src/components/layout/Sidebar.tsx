@@ -11,9 +11,12 @@ import {
   Home,
   Users,
   Wallet,
+  PanelLeftClose,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAppStore } from '@/stores/app-store';
+import { useRef, useCallback } from 'react';
 import type { ElementType } from 'react';
 
 interface NavItem {
@@ -57,16 +60,70 @@ interface SidebarProps {
   tripTitle?: string;
 }
 
+const MIN_WIDTH = 180;
+const MAX_WIDTH = 320;
+
 export function Sidebar({ tripId, tripTitle }: SidebarProps) {
   const pathname = usePathname();
+  const { sidebarOpen, sidebarWidth, toggleSidebar, setSidebarWidth } =
+    useAppStore();
+  const isResizing = useRef(false);
+
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      isResizing.current = true;
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+
+      const startX = e.clientX;
+      const startWidth = sidebarWidth;
+
+      function onMouseMove(ev: MouseEvent) {
+        if (!isResizing.current) return;
+        const newWidth = Math.min(
+          MAX_WIDTH,
+          Math.max(MIN_WIDTH, startWidth + ev.clientX - startX),
+        );
+        setSidebarWidth(newWidth);
+      }
+
+      function onMouseUp() {
+        isResizing.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      }
+
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    },
+    [sidebarWidth, setSidebarWidth],
+  );
+
+  if (!sidebarOpen) {
+    // 사이드바 접힌 상태: Topbar에서 펼치기 버튼 표시 (여기선 렌더링 없음)
+    return null;
+  }
 
   return (
-    <aside className="fixed left-0 top-0 z-30 hidden h-full w-60 flex-col border-r border-surface-line bg-surface-card lg:flex">
-      {/* 로고 */}
-      <div className="flex h-16 items-center px-5 border-b border-surface-line">
+    <aside
+      className="fixed left-0 top-0 z-30 hidden h-full flex-col border-r border-surface-line bg-surface-card lg:flex"
+      style={{ width: sidebarWidth }}
+    >
+      {/* 로고 + 토글 */}
+      <div className="flex h-16 items-center justify-between px-4 border-b border-surface-line">
         <Link href="/home" className="text-lg font-bold text-brand">
           CostTrip
         </Link>
+        <button
+          onClick={toggleSidebar}
+          className="flex h-7 w-7 items-center justify-center rounded-xs text-ink-3 hover:bg-surface-bg-alt transition-colors"
+          aria-label="사이드바 접기"
+        >
+          <PanelLeftClose size={16} />
+        </button>
       </div>
 
       {/* 글로벌 내비 */}
@@ -136,7 +193,7 @@ export function Sidebar({ tripId, tripTitle }: SidebarProps) {
         )}
       </nav>
 
-      {/* 새 여행 생성 → 사용자 정보 */}
+      {/* 하단: 사용자 정보 */}
       <div className="border-t border-surface-line p-3">
         <div className="flex items-center gap-3 px-2">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill bg-brand text-xs font-medium text-on-brand">
@@ -148,6 +205,12 @@ export function Sidebar({ tripId, tripTitle }: SidebarProps) {
           </div>
         </div>
       </div>
+
+      {/* 리사이즈 핸들 */}
+      <div
+        className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-brand/30 active:bg-brand/40 transition-colors"
+        onMouseDown={handleMouseDown}
+      />
     </aside>
   );
 }

@@ -3,6 +3,7 @@
 import { MobileTabBar, Sidebar, Topbar } from '@/components/layout';
 import { TripCreateModal } from '@/components/trip/TripCreateModal';
 import { useTrips } from '@/hooks/use-trips';
+import { useAppStore } from '@/stores/app-store';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 
@@ -13,9 +14,9 @@ export default function GlobalLayout({
 }) {
   const pathname = usePathname();
   const { data: trips } = useTrips();
+  const { sidebarOpen, sidebarWidth } = useAppStore();
   const [createOpen, setCreateOpen] = useState(false);
 
-  // stat 계산
   const ongoing = trips?.filter((t) => t.status === 'in_progress').length ?? 0;
   const planning = trips?.filter((t) => t.status === 'planning').length ?? 0;
   const completed = trips?.filter((t) => t.status === 'completed').length ?? 0;
@@ -31,10 +32,15 @@ export default function GlobalLayout({
     : undefined;
   const searchEnabled = isHome || pathname === '/notifications';
 
+  const mainMarginLeft = sidebarOpen ? sidebarWidth : 0;
+
   return (
     <>
       <Sidebar />
-      <div className="lg:ml-60 min-h-screen flex flex-col pb-14 lg:pb-0">
+      <div
+        className="min-h-screen flex flex-col pb-14 lg:pb-0 transition-[margin-left] duration-200"
+        style={{ marginLeft: mainMarginLeft }}
+      >
         <Topbar
           title={title}
           subtitle={subtitle}

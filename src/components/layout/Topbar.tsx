@@ -1,7 +1,8 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { Bell, Plus, Search } from 'lucide-react';
+import { useAppStore } from '@/stores/app-store';
+import { Bell, PanelLeftOpen, Plus, Search } from 'lucide-react';
 
 interface TopbarProps {
   title: string;
@@ -18,12 +19,25 @@ export function Topbar({
   searchPlaceholder = '여행 검색',
   onCreateTrip,
 }: TopbarProps) {
+  const { sidebarOpen, toggleSidebar } = useAppStore();
+
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-surface-line bg-surface-card px-6">
-      {/* 좌: 타이틀 */}
-      <div className="flex flex-col">
-        <h1 className="text-lg font-bold text-ink">{title}</h1>
-        {subtitle && <span className="text-xs text-ink-3">{subtitle}</span>}
+      {/* 좌: (토글 버튼) + 타이틀 */}
+      <div className="flex items-center gap-3">
+        {!sidebarOpen && (
+          <button
+            onClick={toggleSidebar}
+            className="hidden lg:flex h-8 w-8 items-center justify-center rounded-xs text-ink-3 hover:bg-surface-bg-alt transition-colors"
+            aria-label="사이드바 열기"
+          >
+            <PanelLeftOpen size={18} />
+          </button>
+        )}
+        <div className="flex flex-col">
+          <h1 className="text-lg font-bold text-ink">{title}</h1>
+          {subtitle && <span className="text-xs text-ink-3">{subtitle}</span>}
+        </div>
       </div>
 
       {/* 우: 검색 + 알림 + 여행 생성 */}

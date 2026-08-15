@@ -1,126 +1,176 @@
 'use client';
 
 import { Badge } from '@/components/ui/Badge';
-import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { formatKRW } from '@/lib/utils';
 import type { Trip } from '@/types';
-import { MapPin, MoreHorizontal, Users } from 'lucide-react';
+import { MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
 
 interface TripCardProps {
   trip: Trip;
 }
 
-function getDdayBadge(trip: Trip) {
-  const today = new Date();
-  const start = new Date(trip.startDate);
-  const diffMs = start.getTime() - today.getTime();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+// 커버 그라데이션 (여행별 다른 색)
+const coverGradients: Record<string, string> = {
+  'trip-001': 'bg-gradient-to-br from-[#4C6FFF] via-[#6B8AFF] to-[#A78BFA]',
+  'trip-002': 'bg-gradient-to-br from-[#10B981] via-[#34D399] to-[#06B6D4]',
+  'trip-003': 'bg-gradient-to-br from-[#EC4899] via-[#F472B6] to-[#F59E0B]',
+};
 
-  switch (trip.status) {
-    case 'planning':
-      return { label: `D-${diffDays}`, variant: 'brand' as const };
-    case 'in_progress': {
-      const elapsed = Math.ceil(
-        (today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
-      );
-      return { label: `Day ${elapsed + 1}`, variant: 'ok' as const };
-    }
-    case 'completed':
-      return { label: '종료', variant: 'default' as const };
+const defaultGradient =
+  'bg-gradient-to-br from-[#4C6FFF] via-[#6B8AFF] to-[#A78BFA]';
+
+// Mock: 여행별 데이터
+const mockTripData: Record<
+  string,
+  {
+    usage: number;
+    expense: number;
+    members: string[];
+    warnings?: string;
+    statusLabel: string;
+    ddayLabel: string;
+    icon: string;
   }
-}
+> = {
+  'trip-001': {
+    usage: 65,
+    expense: 1560000,
+    members: ['지', '서', '하', '유'],
+    warnings: '쇼핑 초과 · 식비 임박',
+    statusLabel: '오늘',
+    ddayLabel: 'Day 3',
+    icon: '🗾',
+  },
+  'trip-002': {
+    usage: 0,
+    expense: 0,
+    members: ['지', '서', '유'],
+    statusLabel: '예정',
+    ddayLabel: 'D-65',
+    icon: '🌊',
+  },
+  'trip-003': {
+    usage: 94,
+    expense: 1692000,
+    members: ['지', '서', '하', '유'],
+    statusLabel: '완료',
+    ddayLabel: '완료',
+    icon: '🌴',
+  },
+};
 
-function getStatusFilter(status: Trip['status']) {
-  switch (status) {
-    case 'planning':
-      return '예정';
-    case 'in_progress':
-      return '진행중';
-    case 'completed':
-      return '완료';
-  }
-}
+const memberColors = ['bg-brand', 'bg-ok', 'bg-warn', 'bg-member-purple'];
 
-// mock: 사용률 (실제로는 지출 합계 / 예산)
-function getUsagePercent(trip: Trip) {
-  if (!trip.totalBudget) return null;
-  const mockUsage: Record<string, number> = {
-    'trip-001': 65,
-    'trip-002': 0,
-    'trip-003': 92,
-  };
-  return mockUsage[trip.id] ?? 30;
-}
+const statusBadgeVariant: Record<string, 'brand' | 'ok' | 'default'> = {
+  오늘: 'brand',
+  예정: 'ok',
+  완료: 'default',
+};
 
 export function TripCard({ trip }: TripCardProps) {
-  const dday = getDdayBadge(trip);
-  const usage = getUsagePercent(trip);
+  const data = mockTripData[trip.id] || mockTripData['trip-001'];
+  const gradient = coverGradients[trip.id] || defaultGradient;
   const usageStatus =
-    usage === null
-      ? 'normal'
-      : usage >= 100
-        ? 'danger'
-        : usage >= 80
-          ? 'warn'
-          : 'normal';
+    data.usage >= 100 ? 'danger' : data.usage >= 80 ? 'warn' : 'normal';
 
   return (
-    <Card className="group relative transition-shadow hover:shadow-md">
+    <div className="group relative overflow-hidden rounded-md border border-surface-line bg-surface-card shadow-sm transition-shadow hover:shadow-base">
       <Link href={`/trip/${trip.id}`} className="absolute inset-0 z-10">
         <span className="sr-only">{trip.title} 열기</span>
       </Link>
 
-      {/* 상단: 타이틀 + 배지 + 더보기 */}
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <h3 className="text-base font-semibold text-ink">{trip.title}</h3>
-          <div className="mt-1 flex items-center gap-2 text-sm text-ink-2">
-            <MapPin size={14} />
-            <span>{trip.destination}</span>
-          </div>
+      {/* 커버 영역 */}
+      <div className={`relative px-4 pb-4 pt-3 ${gradient}`}>
+        {/* ⋯ 버튼 */}
+        <button
+          className="relative z-20 flex h-7 w-7 items-center justify-center rounded-sm bg-black/30 text-white transition-colors hover:bg-black/50"
+          aria-label={`${trip.title} 추가 작업`}
+          aria-haspopup="menu"
+          onClick={(e) => e.preventDefault()}
+        >
+          <MoreHorizontal size={14} />
+        </button>
+
+        {/* D-day 배지 (우상단) */}
+        <div className="absolute right-4 top-3">
+          <span className="rounded-sm bg-black/30 px-2 py-1 text-xs font-bold text-white">
+            {data.ddayLabel}
+          </span>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant={dday.variant}>{dday.label}</Badge>
-          <button
-            className="relative z-20 flex h-7 w-7 items-center justify-center rounded-xs text-ink-3 hover:bg-surface-bg-alt hover:text-ink-2 transition-colors"
-            aria-label={`${trip.title} 추가 작업`}
-            aria-haspopup="menu"
-            onClick={(e) => e.preventDefault()}
-          >
-            <MoreHorizontal size={16} />
-          </button>
+
+        {/* 여행 정보 */}
+        <div className="mt-3">
+          <h3 className="text-lg font-bold text-white">{trip.title}</h3>
+          <p className="mt-0.5 text-sm text-white/80">
+            {data.icon} {trip.destination} · {getDuration(trip)} ·{' '}
+            {trip.headcount}명
+          </p>
         </div>
       </div>
 
-      {/* 중간: 기간 + 인원 */}
-      <div className="mt-3 flex items-center gap-3 text-sm text-ink-3">
-        <span>
-          {trip.startDate.slice(5)} – {trip.endDate.slice(5)}
-        </span>
-        <span className="flex items-center gap-1">
-          <Users size={13} />
-          {trip.headcount}명
-        </span>
-      </div>
-
-      {/* 하단: 예산 사용률 */}
-      {usage !== null ? (
-        <div className="mt-3">
-          <div className="mb-1 flex justify-between text-xs text-ink-3">
-            <span>{formatKRW(trip.totalBudget)}</span>
-            <span>{usage}%</span>
+      {/* 본문 영역 */}
+      <div className="px-4 py-3">
+        {/* 상태 배지 + 멤버 아바타 */}
+        <div className="flex items-center justify-between">
+          <Badge variant={statusBadgeVariant[data.statusLabel] || 'default'}>
+            {data.statusLabel}
+          </Badge>
+          <div className="flex -space-x-1.5">
+            {data.members.map((m, i) => (
+              <div
+                key={i}
+                className={`flex h-6 w-6 items-center justify-center rounded-pill border-2 border-surface-card text-[10px] font-bold text-on-brand ${memberColors[i % memberColors.length]}`}
+              >
+                {m}
+              </div>
+            ))}
           </div>
-          <ProgressBar value={usage} status={usageStatus} size="sm" />
         </div>
-      ) : (
-        <div className="mt-3">
-          <Badge variant="default">예산 미설정</Badge>
+
+        {/* 기간 + 예산 */}
+        <div className="mt-3 flex items-center gap-2 text-sm text-ink-2">
+          <span>
+            📅 {trip.startDate.slice(5)}~{trip.endDate.slice(5)}
+          </span>
+          <span>
+            예산 <b className="text-ink">{formatKRW(trip.totalBudget)}</b>
+          </span>
         </div>
-      )}
-    </Card>
+
+        {/* 사용률 */}
+        <div className="mt-2">
+          <div className="mb-1 flex items-center justify-between text-xs text-ink-3">
+            <span>{data.usage > 0 ? '예산 사용률' : '예산 사용률'}</span>
+            <span>
+              {data.usage}%{' '}
+              {data.expense > 0 ? (
+                <span className="text-ink-3">{formatKRW(data.expense)}</span>
+              ) : (
+                <span className="text-ink-3">출발 전</span>
+              )}
+            </span>
+          </div>
+          <ProgressBar value={data.usage} status={usageStatus} size="sm" />
+        </div>
+
+        {/* 경고 배너 */}
+        {data.warnings && (
+          <div className="mt-3 flex items-center gap-2 rounded-sm bg-danger-soft px-3 py-2 text-xs text-danger-text">
+            <span>🔴</span>
+            <span>{data.warnings}</span>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
-export { getStatusFilter };
+function getDuration(trip: Trip) {
+  const start = new Date(trip.startDate);
+  const end = new Date(trip.endDate);
+  const days =
+    Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  return `${days - 1}박${days}일`;
+}
