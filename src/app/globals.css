@@ -152,3 +152,21 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
 }
+
+/* 글로벌 스크롤바 스타일 */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-line);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-surface-line-strong);
+}

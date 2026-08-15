@@ -34,17 +34,14 @@ export function MobileTabBar({ tripId }: MobileTabBarProps) {
 
   const tripTabs: TabItem[] = tripId
     ? [
+        { href: '/home', label: '홈', icon: Home },
         { href: `/trip/${tripId}`, label: '계획', icon: ClipboardList },
         {
           href: `/trip/${tripId}/progress`,
           label: '진행',
           icon: LayoutDashboard,
         },
-        {
-          href: `/trip/${tripId}/settlement`,
-          label: '정산',
-          icon: HandCoins,
-        },
+        { href: `/trip/${tripId}/settlement`, label: '정산', icon: HandCoins },
       ]
     : [];
 

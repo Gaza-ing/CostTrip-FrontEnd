@@ -2,10 +2,9 @@
 
 import { Button } from '@/components/ui/Button';
 import { TripCard } from '@/components/trip/TripCard';
-import { TripCreateModal } from '@/components/trip/TripCreateModal';
 import { useTrips } from '@/hooks/use-trips';
 import { formatKRW } from '@/lib/utils';
-import { Plus, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
 
 type StatusFilter = 'all' | 'planning' | 'in_progress' | 'completed';
@@ -20,7 +19,6 @@ const filterLabels: { value: StatusFilter; label: string }[] = [
 export default function HomePage() {
   const { data: trips, isLoading, isError, refetch } = useTrips();
   const [filter, setFilter] = useState<StatusFilter>('all');
-  const [createOpen, setCreateOpen] = useState(false);
 
   const filteredTrips =
     trips?.filter((t) => filter === 'all' || t.status === filter) ?? [];
@@ -31,7 +29,8 @@ export default function HomePage() {
         ongoing: trips.filter((t) => t.status === 'in_progress').length,
         planning: trips.filter((t) => t.status === 'planning').length,
         totalBudget: trips.reduce((sum, t) => sum + t.totalBudget, 0),
-        totalExpense: 1560000, // mock
+        totalExpense: 3252000, // mock
+        noBudgetCount: 0, // mock
       }
     : null;
 
@@ -65,68 +64,68 @@ export default function HomePage() {
   // 빈 상태
   if (!trips || trips.length === 0) {
     return (
-      <>
-        <TripCreateModal
-          open={createOpen}
-          onClose={() => setCreateOpen(false)}
-        />
-        <div className="flex flex-col items-center justify-center py-20">
-          <p className="text-lg font-medium text-ink">
-            첫 여행을 만들어 보세요
-          </p>
-          <p className="mt-1 text-sm text-ink-3">
-            여행 계획과 예산을 한 곳에서 관리할 수 있어요
-          </p>
-          <Button className="mt-4" onClick={() => setCreateOpen(true)}>
-            <Plus size={16} className="mr-1" />새 여행 만들기
-          </Button>
-        </div>
-      </>
+      <div className="flex flex-col items-center justify-center py-20">
+        <p className="text-lg font-medium text-ink">첫 여행을 만들어 보세요</p>
+        <p className="mt-1 text-sm text-ink-3">
+          여행 계획과 예산을 한 곳에서 관리할 수 있어요
+        </p>
+        <p className="mt-3 text-sm text-ink-3">
+          상단의 &quot;여행 생성&quot; 버튼을 눌러주세요
+        </p>
+      </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <TripCreateModal open={createOpen} onClose={() => setCreateOpen(false)} />
-
       {/* Web 상단 stat (lg 이상에서만 표시) */}
       {stats && (
         <div className="hidden lg:grid grid-cols-4 gap-4">
           <StatCard label="진행 중" value={`${stats.ongoing}건`} />
           <StatCard label="예정" value={`${stats.planning}건`} />
-          <StatCard label="총 예산 합계" value={formatKRW(stats.totalBudget)} />
           <StatCard
-            label="누적 지출 (실지출 기준)"
+            label="총 예산 합계"
+            value={formatKRW(stats.totalBudget)}
+            hint={`예산 미설정 ${stats.noBudgetCount}건`}
+          />
+          <StatCard
+            label="누적 지출 · 실지출 기준"
             value={formatKRW(stats.totalExpense)}
+            valueClassName="text-warn-text"
           />
         </div>
       )}
 
-      {/* 필터 + 생성 버튼 */}
+      {/* 필터 + 여행 개수 */}
       <div className="flex items-center justify-between">
-        <div className="flex gap-2">
+        <div className="inline-flex items-center rounded-pill bg-surface-bg-alt p-1">
           {filterLabels.map((f) => (
             <button
               key={f.value}
               onClick={() => setFilter(f.value)}
-              className={`rounded-pill px-3 py-1.5 text-sm font-medium transition-colors ${
+              className={`rounded-pill px-4 py-1.5 text-sm font-medium transition-all ${
                 filter === f.value
-                  ? 'bg-brand text-on-brand'
-                  : 'bg-surface-bg-alt text-ink-2 hover:bg-surface-line'
+                  ? 'bg-surface-card text-brand shadow-sm'
+                  : 'text-ink-3 hover:text-ink-2'
               }`}
             >
               {f.label}
             </button>
           ))}
         </div>
-        <Button size="sm" onClick={() => setCreateOpen(true)}>
-          <Plus size={14} className="mr-1" />새 여행 만들기
-        </Button>
+        <span className="text-sm text-ink-3">
+          {filteredTrips.length}개의 여행
+        </span>
       </div>
 
       {/* 여행 카드 그리드 */}
       {filteredTrips.length > 0 ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div
+          className="grid gap-5"
+          style={{
+            gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+          }}
+        >
           {filteredTrips.map((trip) => (
             <TripCard key={trip.id} trip={trip} />
           ))}
@@ -140,11 +139,26 @@ export default function HomePage() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({
+  label,
+  value,
+  hint,
+  valueClassName,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  valueClassName?: string;
+}) {
   return (
     <div className="rounded-sm border border-surface-line bg-surface-card p-4">
       <p className="text-xs text-ink-3">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-ink">{value}</p>
+      <p
+        className={`mt-1 text-lg font-semibold ${valueClassName || 'text-ink'}`}
+      >
+        {value}
+      </p>
+      {hint && <p className="mt-0.5 text-xs text-ink-3">{hint}</p>}
     </div>
   );
 }
