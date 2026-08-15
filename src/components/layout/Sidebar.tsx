@@ -6,7 +6,6 @@ import {
   ClipboardList,
   HandCoins,
   LayoutDashboard,
-  Plus,
   Receipt,
   Settings,
   Home,
@@ -64,7 +63,7 @@ export function Sidebar({ tripId, tripTitle }: SidebarProps) {
   return (
     <aside className="fixed left-0 top-0 z-30 hidden h-full w-60 flex-col border-r border-surface-line bg-surface-card lg:flex">
       {/* 로고 */}
-      <div className="flex h-14 items-center px-5 border-b border-surface-line">
+      <div className="flex h-16 items-center px-5 border-b border-surface-line">
         <Link href="/home" className="text-lg font-bold text-brand">
           CostTrip
         </Link>
@@ -137,15 +136,17 @@ export function Sidebar({ tripId, tripTitle }: SidebarProps) {
         )}
       </nav>
 
-      {/* 새 여행 생성 */}
+      {/* 새 여행 생성 → 사용자 정보 */}
       <div className="border-t border-surface-line p-3">
-        <Link
-          href="/trip/create"
-          className="flex w-full items-center justify-center gap-2 rounded-sm bg-brand px-4 py-2.5 text-sm font-medium text-on-brand transition-colors hover:bg-brand-dark"
-        >
-          <Plus size={16} />
-          <span>새 여행 만들기</span>
-        </Link>
+        <div className="flex items-center gap-3 px-2">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-pill bg-brand text-xs font-medium text-on-brand">
+            지
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-ink truncate">김지원</p>
+            <p className="text-xs text-ink-3">owner</p>
+          </div>
+        </div>
       </div>
     </aside>
   );
