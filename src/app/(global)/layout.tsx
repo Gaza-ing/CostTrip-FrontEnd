@@ -3,6 +3,7 @@
 import { MobileTabBar, Sidebar, Topbar } from '@/components/layout';
 import { TripCreateModal } from '@/components/trip/TripCreateModal';
 import { useTrips } from '@/hooks/use-trips';
+import { useIsDesktop } from '@/hooks/use-is-desktop';
 import { useAppStore } from '@/stores/app-store';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
@@ -16,6 +17,7 @@ export default function GlobalLayout({
   const { data: trips } = useTrips();
   const { sidebarOpen, sidebarWidth } = useAppStore();
   const [createOpen, setCreateOpen] = useState(false);
+  const isDesktop = useIsDesktop();
 
   const ongoing = trips?.filter((t) => t.status === 'in_progress').length ?? 0;
   const planning = trips?.filter((t) => t.status === 'planning').length ?? 0;
@@ -32,7 +34,7 @@ export default function GlobalLayout({
     : undefined;
   const searchEnabled = isHome || pathname === '/notifications';
 
-  const mainMarginLeft = sidebarOpen ? sidebarWidth : 0;
+  const mainMarginLeft = isDesktop && sidebarOpen ? sidebarWidth : 0;
 
   return (
     <>
