@@ -31,7 +31,11 @@ export default function TripLayout({
     <>
       <Sidebar tripId={tripId} tripTitle="오사카 우정여행" />
       <div className="lg:ml-60 min-h-screen flex flex-col pb-14 lg:pb-0">
-        <Topbar title={title} subtitle="오사카 우정여행" searchEnabled />
+        <Topbar
+          title="오사카 우정여행"
+          subtitle="2026.07.10~07.14 · 4박5일 · Day 3 진행 중"
+          searchEnabled
+        />
         <main className="flex-1 p-4 lg:p-6">{children}</main>
       </div>
       <MobileTabBar tripId={tripId} />
