@@ -14,7 +14,14 @@ export default function TripLayout({
   const params = useParams();
   const pathname = usePathname();
   const tripId = params.tripId as string;
-  const { sidebarOpen, sidebarWidth, editMode, tripStartDate, tripEndDate, setTripDates } = useAppStore();
+  const {
+    sidebarOpen,
+    sidebarWidth,
+    editMode,
+    tripStartDate,
+    tripEndDate,
+    setTripDates,
+  } = useAppStore();
   const isDesktop = useIsDesktop();
 
   const basePath = `/trip/${tripId}`;

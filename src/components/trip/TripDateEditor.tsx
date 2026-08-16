@@ -86,9 +86,7 @@ export function TripDateEditor({
                     ...f,
                     startDate: e.target.value,
                     endDate:
-                      f.endDate && e.target.value > f.endDate
-                        ? ''
-                        : f.endDate,
+                      f.endDate && e.target.value > f.endDate ? '' : f.endDate,
                   }))
                 }
               />

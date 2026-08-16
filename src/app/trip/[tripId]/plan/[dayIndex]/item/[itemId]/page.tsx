@@ -50,10 +50,7 @@ export default function PlanItemEditPage() {
         </h2>
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="mx-auto max-w-lg space-y-5"
-      >
+      <form onSubmit={handleSubmit} className="mx-auto max-w-lg space-y-5">
         <Card>
           <div className="space-y-4">
             <Input

@@ -243,15 +243,26 @@ export default function DayPlanPage() {
           {items.length === 0 ? (
             <Card className="py-12 text-center">
               <p className="text-sm text-ink-3">아직 일정이 없습니다</p>
-              <Button variant="ghost" size="sm" className="mt-3" onClick={openAddPanel}>
-                <Plus size={14} className="mr-1" />
-                첫 일정 추가하기
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mt-3"
+                onClick={openAddPanel}
+              >
+                <Plus size={14} className="mr-1" />첫 일정 추가하기
               </Button>
             </Card>
           ) : (
             <Card padding="sm" className="bg-brand-tint border-brand-soft">
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={items.map((i) => i.id)}
+                  strategy={verticalListSortingStrategy}
+                >
                   <div className="space-y-3">
                     {items.map((item, index) => (
                       <SortableTimelineItem
@@ -276,14 +287,19 @@ export default function DayPlanPage() {
             <div className="flex items-start gap-2 rounded-sm bg-danger-soft px-4 py-3 text-sm text-danger-text">
               <span>🔴</span>
               <span>
-                쇼핑 예산이 이미 초과 상태(113%)예요. 신사이바시 일정의
-                지출에 주의하세요.
+                쇼핑 예산이 이미 초과 상태(113%)예요. 신사이바시 일정의 지출에
+                주의하세요.
               </span>
             </div>
           )}
 
           {/* 일정 추가 버튼 */}
-          <Button variant="secondary" fullWidth className="border-dashed" onClick={openAddPanel}>
+          <Button
+            variant="secondary"
+            fullWidth
+            className="border-dashed"
+            onClick={openAddPanel}
+          >
             <Plus size={14} className="mr-1.5" />
             Day {dayIndex + 1} 일정 추가
           </Button>
@@ -294,7 +310,10 @@ export default function DayPlanPage() {
           <h2 className="text-sm font-semibold text-ink">지도 · 동선</h2>
 
           {/* 지도 placeholder */}
-          <div className="relative rounded-md border border-surface-line bg-surface-bg-alt overflow-hidden" style={{ height: 420 }}>
+          <div
+            className="relative rounded-md border border-surface-line bg-surface-bg-alt overflow-hidden"
+            style={{ height: 420 }}
+          >
             <div className="absolute inset-0 flex flex-col items-center justify-center text-ink-3">
               <MapPin size={32} className="mb-2 text-brand opacity-50" />
               <p className="text-sm font-medium">지도 영역</p>
@@ -334,9 +353,7 @@ export default function DayPlanPage() {
 
               {/* 경로 표시 (점선) */}
               <div className="absolute top-[20%] left-[22%] text-xs text-brand opacity-50">
-                <span className="text-[10px]">
-                  오사카성 → 도톤보리 일대
-                </span>
+                <span className="text-[10px]">오사카성 → 도톤보리 일대</span>
               </div>
             </div>
           </div>
@@ -527,8 +544,14 @@ function SortableTimelineItem({
   onMoveDown: () => void;
   onDelete: () => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: item.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -567,13 +590,18 @@ function SortableTimelineItem({
         <p className="text-xs text-ink-3">
           <Badge
             variant="category"
-            category={item.categoryId as 'stay' | 'move' | 'food' | 'tour' | 'shop' | 'etc'}
+            category={
+              item.categoryId as
+                'stay' | 'move' | 'food' | 'tour' | 'shop' | 'etc'
+            }
             className="mr-1"
           >
             {cat?.label}
           </Badge>
           · {item.latitude ? '오사카' : '장소 미정'}
-          {item.endTime && item.startTime && ` · 약 ${getTimeDiff(item.startTime, item.endTime)}`}
+          {item.endTime &&
+            item.startTime &&
+            ` · 약 ${getTimeDiff(item.startTime, item.endTime)}`}
         </p>
       </div>
 
@@ -591,7 +619,10 @@ function SortableTimelineItem({
       {/* 액션: 위/아래/삭제 */}
       <div className="flex items-center gap-1 shrink-0">
         <button
-          onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onMoveUp();
+          }}
           disabled={index === 0}
           className="flex h-7 w-7 items-center justify-center rounded-xs border border-surface-line text-ink-3 hover:bg-surface-bg-alt disabled:opacity-30 transition-colors"
           aria-label="위로 이동"
@@ -599,7 +630,10 @@ function SortableTimelineItem({
           <ChevronUp size={13} />
         </button>
         <button
-          onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onMoveDown();
+          }}
           disabled={index === total - 1}
           className="flex h-7 w-7 items-center justify-center rounded-xs border border-surface-line text-ink-3 hover:bg-surface-bg-alt disabled:opacity-30 transition-colors"
           aria-label="아래로 이동"
@@ -607,7 +641,10 @@ function SortableTimelineItem({
           <ChevronDown size={13} />
         </button>
         <button
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
           className="flex h-7 w-7 items-center justify-center rounded-xs border border-surface-line text-ink-3 hover:text-danger hover:border-danger transition-colors"
           aria-label="삭제"
         >

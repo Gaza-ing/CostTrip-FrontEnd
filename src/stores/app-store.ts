@@ -26,7 +26,11 @@ interface AppState {
     title: string;
     subtitle: string;
   };
-  setEditMode: (mode: { active: boolean; title: string; subtitle: string }) => void;
+  setEditMode: (mode: {
+    active: boolean;
+    title: string;
+    subtitle: string;
+  }) => void;
   clearEditMode: () => void;
 }
 
