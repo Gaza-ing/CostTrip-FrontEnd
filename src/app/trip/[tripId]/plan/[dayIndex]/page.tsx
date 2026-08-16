@@ -35,7 +35,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { PlanItem } from '@/types';
 
 export default function DayPlanPage() {
@@ -66,11 +66,9 @@ export default function DayPlanPage() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<PlanItem | null>(null);
   const { setEditMode, clearEditMode, tripStartDate } = useAppStore();
-  const [dayLabel, setDayLabel] = useState(`Day ${dayIndex + 1}`);
 
-  useEffect(() => {
-    setDayLabel(getDayLabelFromStart(dayIndex, tripStartDate));
-  }, [dayIndex, tripStartDate]);
+  // D-day 라벨: 클라이언트에서만 정확한 값 (suppressHydrationWarning으로 처리)
+  const dayLabel = getDayLabelFromStart(dayIndex, tripStartDate);
   const [panelForm, setPanelForm] = useState({
     title: '',
     categoryId: 'tour',
@@ -237,7 +235,7 @@ export default function DayPlanPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">타임라인</h2>
-            <Badge variant="brand">
+            <Badge variant="brand" suppressHydrationWarning>
               {dayLabel}
             </Badge>
           </div>
