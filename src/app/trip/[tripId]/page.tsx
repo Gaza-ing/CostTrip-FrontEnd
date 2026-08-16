@@ -1,13 +1,11 @@
 'use client';
 
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { CATEGORIES } from '@/lib/constants';
 import { formatKRW } from '@/lib/utils';
-import { mockDays, mockMembers, mockBudgetCategories } from '@/lib/api';
-import { Plus } from 'lucide-react';
+import { mockMembers, mockBudgetCategories } from '@/lib/api';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
