@@ -35,7 +35,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { PlanItem } from '@/types';
 
 export default function DayPlanPage() {
@@ -66,6 +66,11 @@ export default function DayPlanPage() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<PlanItem | null>(null);
   const { setEditMode, clearEditMode, tripStartDate } = useAppStore();
+  const [dayLabel, setDayLabel] = useState(`Day ${dayIndex + 1}`);
+
+  useEffect(() => {
+    setDayLabel(getDayLabelFromStart(dayIndex, tripStartDate));
+  }, [dayIndex, tripStartDate]);
   const [panelForm, setPanelForm] = useState({
     title: '',
     categoryId: 'tour',
@@ -233,7 +238,7 @@ export default function DayPlanPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">타임라인</h2>
             <Badge variant="brand">
-              {getDayLabelFromStart(dayIndex, tripStartDate)}
+              {dayLabel}
             </Badge>
           </div>
 
