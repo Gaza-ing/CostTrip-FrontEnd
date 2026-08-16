@@ -4,3 +4,4 @@ export { Card, CardHeader, CardTitle } from './Card';
 export { Badge } from './Badge';
 export { ProgressBar } from './ProgressBar';
 export { Modal } from './Modal';
+export { SlidePanel } from './SlidePanel';

@@ -14,6 +14,15 @@ interface AppState {
   /** 사이드바 너비 (px) */
   sidebarWidth: number;
   setSidebarWidth: (width: number) => void;
+
+  /** 편집 패널 상태 */
+  editMode: {
+    active: boolean;
+    title: string;
+    subtitle: string;
+  };
+  setEditMode: (mode: { active: boolean; title: string; subtitle: string }) => void;
+  clearEditMode: () => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -26,4 +35,9 @@ export const useAppStore = create<AppState>((set) => ({
 
   sidebarWidth: 220,
   setSidebarWidth: (width) => set({ sidebarWidth: width }),
+
+  editMode: { active: false, title: '', subtitle: '' },
+  setEditMode: (mode) => set({ editMode: mode }),
+  clearEditMode: () =>
+    set({ editMode: { active: false, title: '', subtitle: '' } }),
 }));

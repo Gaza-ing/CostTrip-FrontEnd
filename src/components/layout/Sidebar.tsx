@@ -71,6 +71,14 @@ export function Sidebar({ tripId, tripTitle }: SidebarProps) {
     useAppStore();
   const isResizing = useRef(false);
 
+  // 경로에 따라 계획/진행 자동 판정
+  const isProgressPath = tripId
+    ? pathname.startsWith(`/trip/${tripId}/progress`) ||
+      pathname.startsWith(`/trip/${tripId}/expense`) ||
+      pathname.startsWith(`/trip/${tripId}/settlement`)
+    : false;
+  const activeMode = isProgressPath ? 'progress' : 'plan';
+
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
@@ -173,14 +181,28 @@ export function Sidebar({ tripId, tripTitle }: SidebarProps) {
               </p>
             </div>
 
-            {/* 계획/진행 세그먼트 토글 */}
+            {/* 계획/진행 세그먼트 (경로 기반 자동 표시) */}
             <div className="mx-3 mb-4 inline-flex w-[calc(100%-24px)] items-center rounded-pill bg-surface-bg-alt p-1">
-              <button className="flex-1 rounded-pill bg-surface-card px-3 py-1.5 text-xs font-medium text-brand shadow-sm">
+              <span
+                className={cn(
+                  'flex-1 rounded-pill px-3 py-1.5 text-xs font-medium text-center transition-all',
+                  activeMode === 'plan'
+                    ? 'bg-surface-card text-brand shadow-sm'
+                    : 'text-ink-3',
+                )}
+              >
                 계획
-              </button>
-              <button className="flex-1 rounded-pill px-3 py-1.5 text-xs font-medium text-ink-3">
+              </span>
+              <span
+                className={cn(
+                  'flex-1 rounded-pill px-3 py-1.5 text-xs font-medium text-center transition-all',
+                  activeMode === 'progress'
+                    ? 'bg-surface-card text-brand shadow-sm'
+                    : 'text-ink-3',
+                )}
+              >
                 진행
-              </button>
+              </span>
             </div>
 
             {tripNav.map((group) => (
@@ -192,10 +214,14 @@ export function Sidebar({ tripId, tripTitle }: SidebarProps) {
                   {group.items.map((item) => {
                     const fullHref = `/trip/${tripId}${item.href}`;
                     const Icon = item.icon;
+                    // '/plan/0' → '/plan'까지만 비교해서 /plan/0, /plan/2 등 모두 활성
+                    const matchPath = item.href.match(/^\/plan\/\d/)
+                      ? `/trip/${tripId}/plan`
+                      : fullHref;
                     const isActive =
                       item.href === ''
                         ? pathname === `/trip/${tripId}`
-                        : pathname.startsWith(fullHref);
+                        : pathname.startsWith(matchPath);
                     return (
                       <li key={item.href}>
                         <Link

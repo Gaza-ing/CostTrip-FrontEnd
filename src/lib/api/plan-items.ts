@@ -1,0 +1,95 @@
+import type { PlanItem } from '@/types';
+
+// Mock: Day별 PlanItem
+export const mockPlanItems: PlanItem[] = [
+  {
+    id: 'pi-001',
+    dayId: 'day-001',
+    categoryId: 'move',
+    title: '간사이 공항 도착',
+    estimatedCost: 0,
+    startTime: '14:00',
+    endTime: '14:30',
+    latitude: 34.4347,
+    longitude: 135.244,
+    sortOrder: 0,
+  },
+  {
+    id: 'pi-002',
+    dayId: 'day-001',
+    categoryId: 'stay',
+    title: '호텔 체크인',
+    estimatedCost: 180000,
+    startTime: '16:00',
+    endTime: '16:30',
+    latitude: 34.6626,
+    longitude: 135.5012,
+    sortOrder: 1,
+  },
+  {
+    id: 'pi-003',
+    dayId: 'day-001',
+    categoryId: 'food',
+    title: '도톤보리 저녁',
+    estimatedCost: 40000,
+    startTime: '18:30',
+    endTime: '20:00',
+    latitude: 34.6687,
+    longitude: 135.5027,
+    sortOrder: 2,
+  },
+  // Day 3 (오늘)
+  {
+    id: 'pi-010',
+    dayId: 'day-003',
+    categoryId: 'tour',
+    title: '오사카성',
+    estimatedCost: 2400,
+    startTime: '09:30',
+    endTime: '11:30',
+    latitude: 34.6873,
+    longitude: 135.5262,
+    sortOrder: 0,
+  },
+  {
+    id: 'pi-011',
+    dayId: 'day-003',
+    categoryId: 'food',
+    title: '도톤보리 점심',
+    estimatedCost: 8000,
+    startTime: '12:30',
+    endTime: '13:30',
+    latitude: 34.6687,
+    longitude: 135.5027,
+    sortOrder: 1,
+  },
+  {
+    id: 'pi-012',
+    dayId: 'day-003',
+    categoryId: 'shop',
+    title: '신사이바시 쇼핑',
+    estimatedCost: 0,
+    startTime: '15:00',
+    endTime: '17:00',
+    latitude: 34.6722,
+    longitude: 135.5016,
+    sortOrder: 2,
+  },
+  {
+    id: 'pi-013',
+    dayId: 'day-003',
+    categoryId: 'stay',
+    title: '호텔 체크인',
+    estimatedCost: 0,
+    startTime: '19:00',
+    endTime: undefined,
+    latitude: 34.6626,
+    longitude: 135.5012,
+    sortOrder: 3,
+  },
+];
+
+export async function fetchPlanItems(dayId: string): Promise<PlanItem[]> {
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  return mockPlanItems.filter((p) => p.dayId === dayId);
+}
