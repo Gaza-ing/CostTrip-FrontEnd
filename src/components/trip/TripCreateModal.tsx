@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { useCreateTrip } from '@/hooks/use-trips';
 import { formatKRW } from '@/lib/utils';
-import { MapPin, Search, ChevronDown, UserPlus } from 'lucide-react';
+import { Search, ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
@@ -21,12 +21,6 @@ interface MemberItem {
   role: 'owner' | 'editor' | 'viewer';
   color: string;
 }
-
-const ROLE_LABELS: Record<string, string> = {
-  owner: '소유자',
-  editor: '편집',
-  viewer: '보기',
-};
 
 const MEMBER_COLORS = ['bg-brand', 'bg-ok', 'bg-warn', 'bg-member-purple'];
 

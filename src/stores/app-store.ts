@@ -15,6 +15,11 @@ interface AppState {
   sidebarWidth: number;
   setSidebarWidth: (width: number) => void;
 
+  /** 여행 기간 */
+  tripStartDate: string;
+  tripEndDate: string;
+  setTripDates: (startDate: string, endDate: string) => void;
+
   /** 편집 패널 상태 */
   editMode: {
     active: boolean;
@@ -35,6 +40,11 @@ export const useAppStore = create<AppState>((set) => ({
 
   sidebarWidth: 220,
   setSidebarWidth: (width) => set({ sidebarWidth: width }),
+
+  tripStartDate: '2026-07-10',
+  tripEndDate: '2026-07-14',
+  setTripDates: (startDate, endDate) =>
+    set({ tripStartDate: startDate, tripEndDate: endDate }),
 
   editMode: { active: false, title: '', subtitle: '' },
   setEditMode: (mode) => set({ editMode: mode }),

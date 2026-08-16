@@ -7,7 +7,7 @@ import Link from 'next/link';
 
 interface TopbarProps {
   title: string;
-  subtitle?: string;
+  subtitle?: string | React.ReactNode;
   searchEnabled?: boolean;
   searchPlaceholder?: string;
   onCreateTrip?: () => void;
@@ -49,7 +49,11 @@ export function Topbar({
         )}
         <div className="flex flex-col">
           <h1 className="text-lg font-bold text-ink">{title}</h1>
-          {subtitle && <span className="text-xs text-ink-3">{subtitle}</span>}
+          {subtitle && (
+            typeof subtitle === 'string'
+              ? <span className="text-xs text-ink-3">{subtitle}</span>
+              : subtitle
+          )}
         </div>
       </div>
 

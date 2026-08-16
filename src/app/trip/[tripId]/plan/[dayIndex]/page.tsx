@@ -15,9 +15,24 @@ import {
   ChevronUp,
   ChevronDown,
   Trash2,
-  Pencil,
   MapPin,
+  GripVertical,
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
@@ -50,7 +65,7 @@ export default function DayPlanPage() {
   // 슬라이드 패널 state
   const [panelOpen, setPanelOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<PlanItem | null>(null);
-  const { setEditMode, clearEditMode } = useAppStore();
+  const { setEditMode, clearEditMode, tripStartDate } = useAppStore();
   const [panelForm, setPanelForm] = useState({
     title: '',
     categoryId: 'tour',
@@ -124,7 +139,7 @@ export default function DayPlanPage() {
     } else {
       // 추가: 새 항목 생성
       const newItem: PlanItem = {
-        id: `pi-${Date.now()}`,
+        id: `pi-new-${items.length}`,
         dayId,
         categoryId: panelForm.categoryId,
         title: panelForm.title || '새 일정',
@@ -147,6 +162,19 @@ export default function DayPlanPage() {
       newItems[index],
     ];
     setItems(newItems);
+  }
+
+  // dnd-kit
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = items.findIndex((i) => i.id === active.id);
+    const newIndex = items.findIndex((i) => i.id === over.id);
+    setItems(arrayMove(items, oldIndex, newIndex));
   }
 
   function deleteItem(id: string) {
@@ -205,7 +233,7 @@ export default function DayPlanPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">타임라인</h2>
             <Badge variant="brand">
-              {getDayLabel(dayIndex)}
+              {getDayLabelFromStart(dayIndex, tripStartDate)}
             </Badge>
           </div>
 
@@ -219,95 +247,24 @@ export default function DayPlanPage() {
             </Card>
           ) : (
             <Card padding="sm" className="bg-brand-tint border-brand-soft">
-              <div className="space-y-3">
-                {items.map((item, index) => {
-                  const cat = CATEGORIES.find(
-                    (c) => c.id === item.categoryId,
-                  );
-                  const hasTime = !!item.startTime;
-
-                  return (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-3 rounded-xs bg-surface-card px-3 py-2.5 shadow-sm cursor-pointer hover:ring-1 hover:ring-brand/30 transition-all"
-                      onClick={() => openEditPanel(item)}
-                    >
-                      {/* 카테고리 아이콘 */}
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-surface-bg-alt text-lg">
-                        {cat?.icon}
-                      </span>
-
-                      {/* 내용 */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-ink truncate">
-                          {item.title}
-                        </p>
-                        <p className="text-xs text-ink-3">
-                          <Badge
-                            variant="category"
-                            category={
-                              item.categoryId as
-                                | 'stay'
-                                | 'move'
-                                | 'food'
-                                | 'tour'
-                                | 'shop'
-                                | 'etc'
-                            }
-                            className="mr-1"
-                          >
-                            {cat?.label}
-                          </Badge>
-                          · {item.latitude ? '오사카' : '장소 미정'}
-                          {item.endTime &&
-                            item.startTime &&
-                            ` · 약 ${getTimeDiff(item.startTime, item.endTime)}`}
-                        </p>
-                      </div>
-
-                      {/* 비용 + 시간 */}
-                      <div className="shrink-0 text-right">
-                        <p className="text-sm font-semibold text-ink">
-                          {item.estimatedCost > 0
-                            ? formatKRW(item.estimatedCost)
-                            : '₩0'}
-                        </p>
-                        <p className="text-xs text-ink-3">
-                          {item.startTime || '--:--'}
-                          {item.endTime && `~${item.endTime}`}
-                        </p>
-                      </div>
-
-                      {/* 액션: 위/아래/삭제 */}
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); moveItem(index, 'up'); }}
-                          disabled={index === 0}
-                          className="flex h-7 w-7 items-center justify-center rounded-xs border border-surface-line text-ink-3 hover:bg-surface-bg-alt disabled:opacity-30 transition-colors"
-                          aria-label="위로 이동"
-                        >
-                          <ChevronUp size={13} />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); moveItem(index, 'down'); }}
-                          disabled={index === items.length - 1}
-                          className="flex h-7 w-7 items-center justify-center rounded-xs border border-surface-line text-ink-3 hover:bg-surface-bg-alt disabled:opacity-30 transition-colors"
-                          aria-label="아래로 이동"
-                        >
-                          <ChevronDown size={13} />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }}
-                          className="flex h-7 w-7 items-center justify-center rounded-xs border border-surface-line text-ink-3 hover:text-danger hover:border-danger transition-colors"
-                          aria-label="삭제"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-3">
+                    {items.map((item, index) => (
+                      <SortableTimelineItem
+                        key={item.id}
+                        item={item}
+                        index={index}
+                        total={items.length}
+                        onEdit={() => openEditPanel(item)}
+                        onMoveUp={() => moveItem(index, 'up')}
+                        onMoveDown={() => moveItem(index, 'down')}
+                        onDelete={() => deleteItem(item.id)}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             </Card>
           )}
 
@@ -550,9 +507,116 @@ export default function DayPlanPage() {
   );
 }
 
-function getDayLabel(dayIdx: number): string {
-  // 여행 시작일 기준
-  const tripStart = new Date('2026-07-10');
+function SortableTimelineItem({
+  item,
+  index,
+  total,
+  onEdit,
+  onMoveUp,
+  onMoveDown,
+  onDelete,
+}: {
+  item: PlanItem;
+  index: number;
+  total: number;
+  onEdit: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onDelete: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  };
+
+  const cat = CATEGORIES.find((c) => c.id === item.categoryId);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-3 rounded-xs bg-surface-card px-3 py-2.5 shadow-sm cursor-pointer hover:ring-1 hover:ring-brand/30 transition-all"
+      onClick={onEdit}
+    >
+      {/* 드래그 핸들 */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="shrink-0 cursor-grab text-ink-3 hover:text-ink-2 active:cursor-grabbing touch-none"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <GripVertical size={14} />
+      </div>
+
+      {/* 카테고리 아이콘 */}
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-surface-bg-alt text-lg">
+        {cat?.icon}
+      </span>
+
+      {/* 내용 */}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-ink truncate">{item.title}</p>
+        <p className="text-xs text-ink-3">
+          <Badge
+            variant="category"
+            category={item.categoryId as 'stay' | 'move' | 'food' | 'tour' | 'shop' | 'etc'}
+            className="mr-1"
+          >
+            {cat?.label}
+          </Badge>
+          · {item.latitude ? '오사카' : '장소 미정'}
+          {item.endTime && item.startTime && ` · 약 ${getTimeDiff(item.startTime, item.endTime)}`}
+        </p>
+      </div>
+
+      {/* 비용 + 시간 */}
+      <div className="shrink-0 text-right">
+        <p className="text-sm font-semibold text-ink">
+          {item.estimatedCost > 0 ? formatKRW(item.estimatedCost) : '₩0'}
+        </p>
+        <p className="text-xs text-ink-3">
+          {item.startTime || '--:--'}
+          {item.endTime && `~${item.endTime}`}
+        </p>
+      </div>
+
+      {/* 액션: 위/아래/삭제 */}
+      <div className="flex items-center gap-1 shrink-0">
+        <button
+          onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
+          disabled={index === 0}
+          className="flex h-7 w-7 items-center justify-center rounded-xs border border-surface-line text-ink-3 hover:bg-surface-bg-alt disabled:opacity-30 transition-colors"
+          aria-label="위로 이동"
+        >
+          <ChevronUp size={13} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
+          disabled={index === total - 1}
+          className="flex h-7 w-7 items-center justify-center rounded-xs border border-surface-line text-ink-3 hover:bg-surface-bg-alt disabled:opacity-30 transition-colors"
+          aria-label="아래로 이동"
+        >
+          <ChevronDown size={13} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="flex h-7 w-7 items-center justify-center rounded-xs border border-surface-line text-ink-3 hover:text-danger hover:border-danger transition-colors"
+          aria-label="삭제"
+        >
+          <Trash2 size={13} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function getDayLabelFromStart(dayIdx: number, tripStartDate: string): string {
+  const tripStart = new Date(tripStartDate);
   const dayDate = new Date(tripStart);
   dayDate.setDate(dayDate.getDate() + dayIdx);
 
@@ -567,8 +631,8 @@ function getDayLabel(dayIdx: number): string {
   if (diffDays === 0) return '오늘';
   if (diffDays === 1) return '내일';
   if (diffDays === -1) return '어제';
-  if (diffDays > 0) return `D-${diffDays}`;
-  return `D+${Math.abs(diffDays)}`;
+  if (diffDays > 0) return `D+${diffDays}`;
+  return `D${diffDays}`;
 }
 
 function getTimeDiff(start: string, end: string): string {

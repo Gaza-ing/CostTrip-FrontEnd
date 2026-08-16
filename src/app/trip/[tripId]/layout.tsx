@@ -1,6 +1,7 @@
 'use client';
 
 import { MobileTabBar, Sidebar, Topbar } from '@/components/layout';
+import { TripDateEditor } from '@/components/trip/TripDateEditor';
 import { useIsDesktop } from '@/hooks/use-is-desktop';
 import { useAppStore } from '@/stores/app-store';
 import { useParams, usePathname } from 'next/navigation';
@@ -13,7 +14,7 @@ export default function TripLayout({
   const params = useParams();
   const pathname = usePathname();
   const tripId = params.tripId as string;
-  const { sidebarOpen, sidebarWidth, editMode } = useAppStore();
+  const { sidebarOpen, sidebarWidth, editMode, tripStartDate, tripEndDate, setTripDates } = useAppStore();
   const isDesktop = useIsDesktop();
 
   const basePath = `/trip/${tripId}`;
@@ -21,7 +22,8 @@ export default function TripLayout({
 
   // 동적 타이틀 (편집 모드 시 오버라이드)
   let headerTitle = '오사카 우정여행';
-  let headerSubtitle = '2026.07.10~07.14 · 4박5일 · Day 3 진행 중';
+  let headerSubtitle: string | React.ReactNode =
+    '2026.07.10~07.14 · 4박5일 · Day 3 진행 중';
 
   if (editMode.active) {
     headerTitle = editMode.title;
@@ -30,7 +32,29 @@ export default function TripLayout({
     const dayMatch = subPath.match(/\/plan\/(\d+)/);
     const dayNum = dayMatch ? parseInt(dayMatch[1]) + 1 : 1;
     headerTitle = '날짜별 세부 계획';
-    headerSubtitle = `오사카 우정여행 · 2026.07.10~07.14 · Day ${dayNum} (오늘)`;
+    headerSubtitle = (
+      <span className="text-xs text-ink-3">
+        오사카 우정여행 ·{' '}
+        <TripDateEditor
+          startDate={tripStartDate}
+          endDate={tripEndDate}
+          onSave={setTripDates}
+        />{' '}
+        · Day {dayNum}
+      </span>
+    );
+  } else if (subPath === '' || subPath === '/') {
+    headerTitle = '오사카 우정여행';
+    headerSubtitle = (
+      <span className="text-xs text-ink-3">
+        <TripDateEditor
+          startDate={tripStartDate}
+          endDate={tripEndDate}
+          onSave={setTripDates}
+        />{' '}
+        · 4박5일 · Day 3 진행 중
+      </span>
+    );
   } else if (subPath === '/budget') {
     headerTitle = '예산 설정';
     headerSubtitle = '오사카 우정여행 · 전체 + 카테고리별 예산';
