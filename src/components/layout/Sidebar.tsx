@@ -69,7 +69,20 @@ export function Sidebar({ tripId, tripTitle }: SidebarProps) {
   const pathname = usePathname();
   const { sidebarOpen, sidebarWidth, toggleSidebar, setSidebarWidth } =
     useAppStore();
+  const tripDestination = useAppStore((s) => s.tripDestination);
+  const tripHeadcount = useAppStore((s) => s.tripHeadcount);
+  const tripStartDate = useAppStore((s) => s.tripStartDate);
+  const tripEndDate = useAppStore((s) => s.tripEndDate);
   const isResizing = useRef(false);
+
+  const dayCount =
+    tripStartDate && tripEndDate
+      ? Math.ceil(
+          (new Date(tripEndDate).getTime() - new Date(tripStartDate).getTime()) /
+            (1000 * 60 * 60 * 24),
+        ) + 1
+      : 5;
+  const durationLabel = `${dayCount - 1}박${dayCount}일`;
 
   // 경로에 따라 계획/진행 자동 판정
   const isProgressPath = tripId
@@ -177,7 +190,7 @@ export function Sidebar({ tripId, tripTitle }: SidebarProps) {
                 {tripTitle || '여행'}
               </p>
               <p className="text-[11px] text-ink-3 mt-0.5">
-                간사이 · 4박5일 · 4명
+                {tripDestination} · {durationLabel} · {tripHeadcount}명
               </p>
             </div>
 

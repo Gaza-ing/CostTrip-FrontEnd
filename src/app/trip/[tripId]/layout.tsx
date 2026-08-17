@@ -21,16 +21,29 @@ export default function TripLayout({
     tripStartDate,
     tripEndDate,
     setTripDates,
+    tripTitle,
+    tripHeadcount,
   } = useAppStore();
   const isDesktop = useIsDesktop();
 
   const basePath = `/trip/${tripId}`;
   const subPath = pathname.replace(basePath, '') || '';
 
+  // 일수 계산
+  const dayCount =
+    tripStartDate && tripEndDate
+      ? Math.ceil(
+          (new Date(tripEndDate).getTime() -
+            new Date(tripStartDate).getTime()) /
+            (1000 * 60 * 60 * 24),
+        ) + 1
+      : 5;
+  const durationLabel = `${dayCount - 1}박${dayCount}일`;
+
   // 동적 타이틀 (편집 모드 시 오버라이드)
-  let headerTitle = '오사카 우정여행';
+  let headerTitle = tripTitle;
   let headerSubtitle: string | React.ReactNode =
-    '2026.07.10~07.14 · 4박5일 · Day 3 진행 중';
+    `${tripStartDate.replace(/-/g, '.')}~${tripEndDate.replace(/-/g, '.')} · ${durationLabel}`;
 
   if (editMode.active) {
     headerTitle = editMode.title;
@@ -41,7 +54,7 @@ export default function TripLayout({
     headerTitle = '날짜별 세부 계획';
     headerSubtitle = (
       <span className="text-xs text-ink-3">
-        오사카 우정여행 ·{' '}
+        {tripTitle} ·{' '}
         <TripDateEditor
           startDate={tripStartDate}
           endDate={tripEndDate}
@@ -51,7 +64,7 @@ export default function TripLayout({
       </span>
     );
   } else if (subPath === '' || subPath === '/') {
-    headerTitle = '오사카 우정여행';
+    headerTitle = tripTitle;
     headerSubtitle = (
       <span className="text-xs text-ink-3">
         <TripDateEditor
@@ -59,31 +72,31 @@ export default function TripLayout({
           endDate={tripEndDate}
           onSave={setTripDates}
         />{' '}
-        · 4박5일 · Day 3 진행 중
+        · {durationLabel} · {tripHeadcount}명
       </span>
     );
   } else if (subPath === '/budget') {
     headerTitle = '예산 설정';
-    headerSubtitle = '오사카 우정여행 · 전체 + 카테고리별 예산';
+    headerSubtitle = `${tripTitle} · 전체 + 카테고리별 예산`;
   } else if (subPath === '/members') {
     headerTitle = '그룹 · 멤버';
-    headerSubtitle = '오사카 우정여행 · 4명';
+    headerSubtitle = `${tripTitle} · ${tripHeadcount}명`;
   } else if (subPath === '/progress') {
     headerTitle = '진행 대시보드';
-    headerSubtitle = '오사카 우정여행 · 예산 대비 실지출';
+    headerSubtitle = `${tripTitle} · 예산 대비 실지출`;
   } else if (subPath === '/expense') {
     headerTitle = '지출 내역';
-    headerSubtitle = '오사카 우정여행';
+    headerSubtitle = tripTitle;
   } else if (subPath === '/settlement') {
     headerTitle = '정산';
-    headerSubtitle = '오사카 우정여행';
+    headerSubtitle = tripTitle;
   }
 
   const mainMarginLeft = isDesktop && sidebarOpen ? sidebarWidth : 0;
 
   return (
     <>
-      <Sidebar tripId={tripId} tripTitle="오사카 우정여행" />
+      <Sidebar tripId={tripId} tripTitle={tripTitle} />
       <div
         className="min-h-screen flex flex-col pb-14 lg:pb-0 transition-[margin-left] duration-200"
         style={{ marginLeft: mainMarginLeft }}

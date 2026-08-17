@@ -93,10 +93,10 @@ export function TripCard({ trip }: TripCardProps) {
           <MoreHorizontal size={14} />
         </button>
 
-        {/* D-day 배지 (우상단) */}
+        {/* D-day 배지 (우상단) — 실제 날짜 기반 */}
         <div className="absolute right-4 top-3">
           <span className="rounded-sm bg-black/30 px-2 py-1 text-xs font-bold text-white">
-            {data.ddayLabel}
+            {computeDdayLabel(trip)}
           </span>
         </div>
 
@@ -114,8 +114,8 @@ export function TripCard({ trip }: TripCardProps) {
       <div className="px-4 py-3">
         {/* 상태 배지 + 멤버 아바타 */}
         <div className="flex items-center justify-between">
-          <Badge variant={statusBadgeVariant[data.statusLabel] || 'default'}>
-            {data.statusLabel}
+          <Badge variant={statusBadgeVariant[computeStatusLabel(trip)] || 'default'}>
+            {computeStatusLabel(trip)}
           </Badge>
           <div className="flex -space-x-1.5">
             {data.members.map((m, i) => (
@@ -173,4 +173,47 @@ function getDuration(trip: Trip) {
   const days =
     Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
   return `${days - 1}박${days}일`;
+}
+
+function computeDdayLabel(trip: Trip): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(trip.startDate);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(trip.endDate);
+  end.setHours(0, 0, 0, 0);
+
+  if (trip.status === 'completed') return '완료';
+
+  if (today < start) {
+    const diff = Math.ceil(
+      (start.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    return `D-${diff}`;
+  }
+
+  if (today >= start && today <= end) {
+    const dayNum =
+      Math.ceil(
+        (today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+      ) + 1;
+    return `Day ${dayNum}`;
+  }
+
+  return '완료';
+}
+
+function computeStatusLabel(trip: Trip): string {
+  if (trip.status === 'completed') return '완료';
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(trip.startDate);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(trip.endDate);
+  end.setHours(0, 0, 0, 0);
+
+  if (today >= start && today <= end) return '오늘';
+  if (today < start) return '예정';
+  return '완료';
 }
