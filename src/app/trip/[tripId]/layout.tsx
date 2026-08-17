@@ -22,7 +22,6 @@ export default function TripLayout({
     tripEndDate,
     setTripDates,
     tripTitle,
-    tripDestination,
     tripHeadcount,
   } = useAppStore();
   const isDesktop = useIsDesktop();
@@ -43,7 +42,8 @@ export default function TripLayout({
 
   // 동적 타이틀 (편집 모드 시 오버라이드)
   let headerTitle = tripTitle;
-  let headerSubtitle: string | React.ReactNode = `${tripStartDate.replace(/-/g, '.')}~${tripEndDate.replace(/-/g, '.')} · ${durationLabel}`;
+  let headerSubtitle: string | React.ReactNode =
+    `${tripStartDate.replace(/-/g, '.')}~${tripEndDate.replace(/-/g, '.')} · ${durationLabel}`;
 
   if (editMode.active) {
     headerTitle = editMode.title;

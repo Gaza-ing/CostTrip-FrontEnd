@@ -125,52 +125,67 @@ export default function TripMainPage() {
   const storePlanItems = useAppStore((s) => s.planItems);
   const tripStartDate = useAppStore((s) => s.tripStartDate);
   const tripEndDate = useAppStore((s) => s.tripEndDate);
-  const tripHeadcount = useAppStore((s) => s.tripHeadcount);
-
-  const members = tripId === 'trip-001'
-    ? mockMembers.filter((m) => m.tripId === 'trip-001')
-    : [{ id: 'me', tripId, userId: 'user-001', displayName: '나', role: 'owner' as const, inviteStatus: 'accepted' as const }];
-  const budgetCategories = tripId === 'trip-001'
-    ? mockBudgetCategories.filter((bc) => bc.tripId === 'trip-001')
-    : CATEGORIES.map((cat, i) => ({
-        id: `bc-new-${i}`,
-        tripId,
-        categoryId: cat.id,
-        budgetAmount: storeBudgets[cat.id] || 0,
-      }));
+  const members =
+    tripId === 'trip-001'
+      ? mockMembers.filter((m) => m.tripId === 'trip-001')
+      : [
+          {
+            id: 'me',
+            tripId,
+            userId: 'user-001',
+            displayName: '나',
+            role: 'owner' as const,
+            inviteStatus: 'accepted' as const,
+          },
+        ];
+  const budgetCategories =
+    tripId === 'trip-001'
+      ? mockBudgetCategories.filter((bc) => bc.tripId === 'trip-001')
+      : CATEGORIES.map((cat, i) => ({
+          id: `bc-new-${i}`,
+          tripId,
+          categoryId: cat.id,
+          budgetAmount: storeBudgets[cat.id] || 0,
+        }));
 
   // Day 수 계산
   const dayCount =
     tripStartDate && tripEndDate
       ? Math.ceil(
-          (new Date(tripEndDate).getTime() - new Date(tripStartDate).getTime()) /
+          (new Date(tripEndDate).getTime() -
+            new Date(tripStartDate).getTime()) /
             (1000 * 60 * 60 * 24),
         ) + 1
       : 5;
 
   // Day 요약 생성 — 새 여행은 store planItems에서 파생
-  const daySummary = tripId === 'trip-001'
-    ? mockDaySummary
-    : Array.from({ length: dayCount }, (_, i) => {
-        const dayId = `day-new-${i}`;
-        const dayItems = storePlanItems.filter((p) => p.dayId === dayId);
-        const cost = dayItems.reduce((sum, p) => sum + p.estimatedCost, 0);
-        return {
-          dayId,
-          title: `Day ${i + 1}`,
-          date: '',
-          items: dayItems.length,
-          icon: '📋',
-          iconCat: 'etc',
-          desc: dayItems.length > 0 ? `${dayItems.length}개 일정` : '일정 없음',
-          cost,
-          isToday: false,
-        };
-      });
+  const daySummary =
+    tripId === 'trip-001'
+      ? mockDaySummary
+      : Array.from({ length: dayCount }, (_, i) => {
+          const dayId = `day-new-${i}`;
+          const dayItems = storePlanItems.filter((p) => p.dayId === dayId);
+          const cost = dayItems.reduce((sum, p) => sum + p.estimatedCost, 0);
+          return {
+            dayId,
+            title: `Day ${i + 1}`,
+            date: '',
+            items: dayItems.length,
+            icon: '📋',
+            iconCat: 'etc',
+            desc:
+              dayItems.length > 0 ? `${dayItems.length}개 일정` : '일정 없음',
+            cost,
+            isToday: false,
+          };
+        });
 
   const hasPlanData = tripId === 'trip-001' || storePlanItems.length > 0;
 
-  const totalPlanned = tripId === 'trip-001' ? 1980000 : storePlanItems.reduce((sum, p) => sum + p.estimatedCost, 0);
+  const totalPlanned =
+    tripId === 'trip-001'
+      ? 1980000
+      : storePlanItems.reduce((sum, p) => sum + p.estimatedCost, 0);
   const totalUsagePercent = Math.round((totalPlanned / totalBudget) * 100);
   const remaining = totalBudget - totalPlanned;
 
@@ -178,7 +193,8 @@ export default function TripMainPage() {
   const warnings = budgetCategories
     .map((bc) => {
       const cat = CATEGORIES.find((c) => c.id === bc.categoryId);
-      const spent = tripId === 'trip-001' ? (mockExpenseByCategory[bc.categoryId] || 0) : 0;
+      const spent =
+        tripId === 'trip-001' ? mockExpenseByCategory[bc.categoryId] || 0 : 0;
       const pct =
         bc.budgetAmount > 0 ? Math.round((spent / bc.budgetAmount) * 100) : 0;
       if (pct >= 100)
@@ -202,7 +218,9 @@ export default function TripMainPage() {
                 key={m.id}
                 className="flex h-8 w-8 items-center justify-center rounded-pill border-2 border-surface-card text-xs font-medium text-on-brand"
                 style={{
-                  backgroundColor: ['#4C6FFF', '#16A34A', '#F97316', '#8B5CF6'][i],
+                  backgroundColor: ['#4C6FFF', '#16A34A', '#F97316', '#8B5CF6'][
+                    i
+                  ],
                 }}
               >
                 {m.displayName.charAt(0)}
@@ -221,7 +239,9 @@ export default function TripMainPage() {
           {/* 일정 계획 안내 */}
           <Card className="flex flex-col items-center justify-center py-12 text-center">
             <span className="text-4xl mb-3">📅</span>
-            <h3 className="text-base font-semibold text-ink">날짜별 일정을 계획하세요</h3>
+            <h3 className="text-base font-semibold text-ink">
+              날짜별 일정을 계획하세요
+            </h3>
             <p className="mt-1 text-sm text-ink-3">
               여행 기간에 맞춰 Day별 일정을 추가할 수 있어요
             </p>
@@ -235,7 +255,9 @@ export default function TripMainPage() {
           {/* 예산 설정 안내 */}
           <Card className="flex flex-col items-center justify-center py-12 text-center">
             <span className="text-4xl mb-3">💰</span>
-            <h3 className="text-base font-semibold text-ink">예산을 설정하세요</h3>
+            <h3 className="text-base font-semibold text-ink">
+              예산을 설정하세요
+            </h3>
             <p className="mt-1 text-sm text-ink-3">
               카테고리별 예산을 배분하고 지출을 관리해요
             </p>
@@ -328,26 +350,55 @@ export default function TripMainPage() {
                 <Card>
                   <div className="mb-3 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-ink">Day 3 세부 일정</h3>
+                      <h3 className="text-sm font-semibold text-ink">
+                        Day 3 세부 일정
+                      </h3>
                       <Badge variant="brand">오늘</Badge>
                     </div>
-                    <Link href={`/trip/${tripId}/plan/2`} className="text-xs text-brand hover:underline">편집</Link>
+                    <Link
+                      href={`/trip/${tripId}/plan/2`}
+                      className="text-xs text-brand hover:underline"
+                    >
+                      편집
+                    </Link>
                   </div>
                   <div className="divide-y divide-surface-line">
                     {mockTodayPlanItems.map((item) => (
-                      <div key={item.time} className="flex items-center gap-3 py-2.5">
-                        <span className="w-11 shrink-0 text-sm font-bold text-ink-2">{item.time}</span>
+                      <div
+                        key={item.time}
+                        className="flex items-center gap-3 py-2.5"
+                      >
+                        <span className="w-11 shrink-0 text-sm font-bold text-ink-2">
+                          {item.time}
+                        </span>
                         <span className="text-lg">{item.icon}</span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-ink">{item.title}</p>
+                          <p className="text-sm font-medium text-ink">
+                            {item.title}
+                          </p>
                           <p className="text-xs text-ink-3">
-                            <Badge variant="category" category={item.cat as 'stay' | 'move' | 'food' | 'tour' | 'shop' | 'etc'} className="mr-1">
+                            <Badge
+                              variant="category"
+                              category={
+                                item.cat as
+                                  | 'stay'
+                                  | 'move'
+                                  | 'food'
+                                  | 'tour'
+                                  | 'shop'
+                                  | 'etc'
+                              }
+                              className="mr-1"
+                            >
                               {CATEGORIES.find((c) => c.id === item.cat)?.label}
                             </Badge>
-                            · {item.place}{item.duration && ` · ${item.duration}`}
+                            · {item.place}
+                            {item.duration && ` · ${item.duration}`}
                           </p>
                         </div>
-                        <span className={`shrink-0 text-sm ${item.cost ? 'text-ink' : 'text-ink-3'}`}>
+                        <span
+                          className={`shrink-0 text-sm ${item.cost ? 'text-ink' : 'text-ink-3'}`}
+                        >
                           {item.cost ? formatKRW(item.cost) : '예정'}
                         </span>
                       </div>
@@ -358,34 +409,68 @@ export default function TripMainPage() {
             }
 
             // 새 여행: store planItems의 Day 0
-            const todayStoreItems = storePlanItems.filter((p) => p.dayId === 'day-new-0');
+            const todayStoreItems = storePlanItems.filter(
+              (p) => p.dayId === 'day-new-0',
+            );
             if (todayStoreItems.length === 0) return null;
 
             return (
               <Card>
                 <div className="mb-3 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-semibold text-ink">Day 1 세부 일정</h3>
+                    <h3 className="text-sm font-semibold text-ink">
+                      Day 1 세부 일정
+                    </h3>
                   </div>
-                  <Link href={`/trip/${tripId}/plan/0`} className="text-xs text-brand hover:underline">편집</Link>
+                  <Link
+                    href={`/trip/${tripId}/plan/0`}
+                    className="text-xs text-brand hover:underline"
+                  >
+                    편집
+                  </Link>
                 </div>
                 <div className="divide-y divide-surface-line">
                   {todayStoreItems.map((item) => {
-                    const cat = CATEGORIES.find((c) => c.id === item.categoryId);
+                    const cat = CATEGORIES.find(
+                      (c) => c.id === item.categoryId,
+                    );
                     return (
-                      <div key={item.id} className="flex items-center gap-3 py-2.5">
-                        <span className="w-11 shrink-0 text-sm font-bold text-ink-2">{item.startTime || '--:--'}</span>
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-3 py-2.5"
+                      >
+                        <span className="w-11 shrink-0 text-sm font-bold text-ink-2">
+                          {item.startTime || '--:--'}
+                        </span>
                         <span className="text-lg">{cat?.icon}</span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-ink">{item.title}</p>
+                          <p className="text-sm font-medium text-ink">
+                            {item.title}
+                          </p>
                           <p className="text-xs text-ink-3">
-                            <Badge variant="category" category={item.categoryId as 'stay' | 'move' | 'food' | 'tour' | 'shop' | 'etc'} className="mr-1">
+                            <Badge
+                              variant="category"
+                              category={
+                                item.categoryId as
+                                  | 'stay'
+                                  | 'move'
+                                  | 'food'
+                                  | 'tour'
+                                  | 'shop'
+                                  | 'etc'
+                              }
+                              className="mr-1"
+                            >
                               {cat?.label}
                             </Badge>
                           </p>
                         </div>
-                        <span className={`shrink-0 text-sm ${item.estimatedCost > 0 ? 'text-ink' : 'text-ink-3'}`}>
-                          {item.estimatedCost > 0 ? formatKRW(item.estimatedCost) : '예정'}
+                        <span
+                          className={`shrink-0 text-sm ${item.estimatedCost > 0 ? 'text-ink' : 'text-ink-3'}`}
+                        >
+                          {item.estimatedCost > 0
+                            ? formatKRW(item.estimatedCost)
+                            : '예정'}
                         </span>
                       </div>
                     );
@@ -482,7 +567,10 @@ export default function TripMainPage() {
             <div className="space-y-3">
               {budgetCategories.map((bc) => {
                 const cat = CATEGORIES.find((c) => c.id === bc.categoryId);
-                const spent = tripId === 'trip-001' ? (mockExpenseByCategory[bc.categoryId] || 0) : 0;
+                const spent =
+                  tripId === 'trip-001'
+                    ? mockExpenseByCategory[bc.categoryId] || 0
+                    : 0;
                 const pct =
                   bc.budgetAmount > 0
                     ? Math.round((spent / bc.budgetAmount) * 100)

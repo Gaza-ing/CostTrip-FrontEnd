@@ -54,19 +54,21 @@ export default function DayPlanPage() {
         ) + 1
       : 5;
 
-  const days = tripId === 'trip-001'
-    ? mockDays.filter((d) => d.tripId === 'trip-001')
-    : Array.from({ length: dayCount }, (_, i) => ({
-        id: `day-new-${i}`,
-        tripId,
-        dayIndex: i,
-        date: '',
-      }));
+  const days =
+    tripId === 'trip-001'
+      ? mockDays.filter((d) => d.tripId === 'trip-001')
+      : Array.from({ length: dayCount }, (_, i) => ({
+          id: `day-new-${i}`,
+          tripId,
+          dayIndex: i,
+          date: '',
+        }));
   const currentDay = days[dayIndex];
   const dayId = currentDay?.id || `day-new-${dayIndex}`;
 
   // Store에서 planItems + mock 합치기
-  const { planItems: storePlanItems, addPlanItem: storeAddPlanItem, deletePlanItem: storeDeletePlanItem, reorderPlanItems: storeReorderPlanItems } = useAppStore();
+  const { planItems: storePlanItems, addPlanItem: storeAddPlanItem } =
+    useAppStore();
 
   const [items, setItems] = useState<PlanItem[]>(() => {
     if (tripId === 'trip-001') {
@@ -166,7 +168,7 @@ export default function DayPlanPage() {
     } else {
       // 추가: 새 항목 생성
       const newItem: PlanItem = {
-        id: `pi-new-${Date.now()}-${items.length}`,
+        id: `pi-new-${crypto.randomUUID()}`,
         dayId,
         categoryId: panelForm.categoryId,
         title: panelForm.title || '새 일정',

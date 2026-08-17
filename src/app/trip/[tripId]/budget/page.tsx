@@ -4,15 +4,9 @@ import { Card } from '@/components/ui/Card';
 import { CATEGORIES } from '@/lib/constants';
 import { formatKRW, cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/app-store';
-import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { Doughnut } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  ArcElement,
-  Tooltip,
-  Legend,
-} from 'chart.js';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -26,7 +20,6 @@ const DONUT_COLORS = [
 ];
 
 export default function BudgetSetupPage() {
-  const params = useParams();
   const {
     totalBudget,
     categoryBudgets,
@@ -58,8 +51,7 @@ export default function BudgetSetupPage() {
       : 5;
   const perPerson =
     categoryTotal > 0 ? Math.round(categoryTotal / headcount) : 0;
-  const perDay =
-    categoryTotal > 0 ? Math.round(categoryTotal / totalDays) : 0;
+  const perDay = categoryTotal > 0 ? Math.round(categoryTotal / totalDays) : 0;
 
   function handleSave() {
     setTotalBudget(localTotal);
@@ -177,12 +169,8 @@ export default function BudgetSetupPage() {
           {/* 카테고리별 배분 */}
           <Card>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-bold text-ink">
-                카테고리별 배분
-              </h2>
-              <span className="text-xs text-ink-3">
-                금액 또는 비율로 조정
-              </span>
+              <h2 className="text-base font-bold text-ink">카테고리별 배분</h2>
+              <span className="text-xs text-ink-3">금액 또는 비율로 조정</span>
             </div>
 
             {/* 테이블 헤더 */}
@@ -323,8 +311,8 @@ export default function BudgetSetupPage() {
               <p className="text-sm text-ink-2 leading-relaxed">
                 임박 <b className="text-ink">{warningThreshold}%</b> · 초과{' '}
                 <b className="text-ink">{overThreshold}%</b> 기준이
-                전체·카테고리 모두에 적용돼요. 실제 사용률은 진행
-                대시보드에서 확인할 수 있어요.
+                전체·카테고리 모두에 적용돼요. 실제 사용률은 진행 대시보드에서
+                확인할 수 있어요.
               </p>
             </div>
           </Card>
