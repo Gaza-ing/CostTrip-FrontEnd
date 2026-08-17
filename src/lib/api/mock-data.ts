@@ -11,9 +11,9 @@ export const mockTrips: Trip[] = [
     totalBudget: 2400000,
     currencyCode: 'KRW',
     tripTimeZone: 'Asia/Tokyo',
-    status: 'in_progress',
+    status: 'completed',
     createdAt: '2026-06-01T09:00:00Z',
-    updatedAt: '2026-07-10T09:00:00Z',
+    updatedAt: '2026-07-14T18:00:00Z',
   },
   {
     id: 'trip-002',

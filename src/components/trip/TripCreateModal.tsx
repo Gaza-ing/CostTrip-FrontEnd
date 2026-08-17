@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { useCreateTrip } from '@/hooks/use-trips';
+import { useAppStore } from '@/stores/app-store';
 import { formatKRW } from '@/lib/utils';
 import { Search, ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -27,14 +28,15 @@ const MEMBER_COLORS = ['bg-brand', 'bg-ok', 'bg-warn', 'bg-member-purple'];
 export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
   const router = useRouter();
   const createTrip = useCreateTrip();
+  const { setTripInfo, setTripDates, setTotalBudget } = useAppStore();
 
   const [form, setForm] = useState({
     title: '',
     destination: '',
     startDate: '',
     endDate: '',
-    headcount: 4,
-    totalBudget: 2400000,
+    headcount: 1,
+    totalBudget: 0,
   });
 
   const [members, setMembers] = useState<MemberItem[]>([
@@ -93,7 +95,7 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
         destination: form.destination,
         startDate: form.startDate,
         endDate: form.endDate,
-        headcount: members.length,
+        headcount: form.headcount,
         totalBudget: form.totalBudget,
         currencyCode: 'KRW',
         tripTimeZone: 'Asia/Seoul',
@@ -101,6 +103,14 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
       },
       {
         onSuccess: (trip) => {
+          // Store에 여행 정보 동기화
+          setTripInfo({
+            title: form.title || form.destination,
+            destination: form.destination,
+            headcount: form.headcount,
+          });
+          setTripDates(form.startDate, form.endDate);
+          setTotalBudget(form.totalBudget);
           onClose();
           router.push(`/trip/${trip.id}`);
         },
@@ -176,9 +186,10 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
                   type="text"
                   placeholder="오사카, 일본"
                   value={form.destination}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, destination: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, destination: e.target.value }));
+                    setErrors((prev) => ({ ...prev, destination: '' }));
+                  }}
                   className="h-10 w-full rounded-xs border border-surface-line bg-surface-card pl-9 pr-3 text-sm text-ink placeholder:text-ink-3 focus:outline-none focus:ring-2 focus:ring-brand"
                 />
               </div>
@@ -220,15 +231,15 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
                 label="시작일"
                 type="date"
                 value={form.startDate}
-                onChange={(e) =>
+                onChange={(e) => {
                   setForm((f) => ({
                     ...f,
                     startDate: e.target.value,
-                    // 시작일이 종료일보다 뒤면 종료일 초기화
                     endDate:
                       f.endDate && e.target.value > f.endDate ? '' : f.endDate,
-                  }))
-                }
+                  }));
+                  setErrors((prev) => ({ ...prev, startDate: '' }));
+                }}
                 error={errors.startDate}
               />
               <Input
@@ -236,9 +247,10 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
                 type="date"
                 min={form.startDate || undefined}
                 value={form.endDate}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, endDate: e.target.value }))
-                }
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, endDate: e.target.value }));
+                  setErrors((prev) => ({ ...prev, endDate: '' }));
+                }}
                 error={errors.endDate}
               />
               <Input
@@ -246,7 +258,7 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
                 type="number"
                 min={1}
                 max={50}
-                value={members.length.toString()}
+                value={form.headcount.toString()}
                 onChange={(e) =>
                   setForm((f) => ({
                     ...f,

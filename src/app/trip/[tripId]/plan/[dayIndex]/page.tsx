@@ -43,21 +43,45 @@ export default function DayPlanPage() {
   const tripId = params.tripId as string;
   const dayIndex = parseInt(params.dayIndex as string);
 
-  const days = mockDays.filter((d) => d.tripId === 'trip-001');
-  const currentDay = days[dayIndex];
-  const dayId = currentDay?.id || 'day-001';
+  // Store에서 여행 기간 읽기
+  const { tripStartDate, tripEndDate } = useAppStore();
+  const dayCount =
+    tripStartDate && tripEndDate
+      ? Math.ceil(
+          (new Date(tripEndDate).getTime() -
+            new Date(tripStartDate).getTime()) /
+            (1000 * 60 * 60 * 24),
+        ) + 1
+      : 5;
 
-  const [items, setItems] = useState<PlanItem[]>(
-    mockPlanItems
-      .filter((p) => p.dayId === dayId)
-      .sort((a, b) => {
-        if (a.startTime && b.startTime)
-          return a.startTime.localeCompare(b.startTime);
-        if (a.startTime) return -1;
-        if (b.startTime) return 1;
-        return a.sortOrder - b.sortOrder;
-      }),
-  );
+  const days = tripId === 'trip-001'
+    ? mockDays.filter((d) => d.tripId === 'trip-001')
+    : Array.from({ length: dayCount }, (_, i) => ({
+        id: `day-new-${i}`,
+        tripId,
+        dayIndex: i,
+        date: '',
+      }));
+  const currentDay = days[dayIndex];
+  const dayId = currentDay?.id || `day-new-${dayIndex}`;
+
+  // Store에서 planItems + mock 합치기
+  const { planItems: storePlanItems, addPlanItem: storeAddPlanItem, deletePlanItem: storeDeletePlanItem, reorderPlanItems: storeReorderPlanItems } = useAppStore();
+
+  const [items, setItems] = useState<PlanItem[]>(() => {
+    if (tripId === 'trip-001') {
+      return mockPlanItems
+        .filter((p) => p.dayId === dayId)
+        .sort((a, b) => {
+          if (a.startTime && b.startTime)
+            return a.startTime.localeCompare(b.startTime);
+          if (a.startTime) return -1;
+          if (b.startTime) return 1;
+          return a.sortOrder - b.sortOrder;
+        });
+    }
+    return storePlanItems.filter((p) => p.dayId === dayId);
+  });
 
   const totalCost = items.reduce((sum, item) => sum + item.estimatedCost, 0);
   const placeCount = items.filter((i) => i.latitude).length;
@@ -65,7 +89,7 @@ export default function DayPlanPage() {
   // 슬라이드 패널 state
   const [panelOpen, setPanelOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<PlanItem | null>(null);
-  const { setEditMode, clearEditMode, tripStartDate } = useAppStore();
+  const { setEditMode, clearEditMode } = useAppStore();
 
   // D-day 라벨: 클라이언트에서만 정확한 값 (suppressHydrationWarning으로 처리)
   const dayLabel = getDayLabelFromStart(dayIndex, tripStartDate);
@@ -142,7 +166,7 @@ export default function DayPlanPage() {
     } else {
       // 추가: 새 항목 생성
       const newItem: PlanItem = {
-        id: `pi-new-${items.length}`,
+        id: `pi-new-${Date.now()}-${items.length}`,
         dayId,
         categoryId: panelForm.categoryId,
         title: panelForm.title || '새 일정',
@@ -152,6 +176,10 @@ export default function DayPlanPage() {
         sortOrder: items.length,
       };
       setItems((prev) => [...prev, newItem]);
+      // Store에도 저장 (새 여행용)
+      if (tripId !== 'trip-001') {
+        storeAddPlanItem(newItem);
+      }
     }
     closePanel();
   }
