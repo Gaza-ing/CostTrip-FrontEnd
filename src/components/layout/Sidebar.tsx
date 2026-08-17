@@ -78,7 +78,8 @@ export function Sidebar({ tripId, tripTitle }: SidebarProps) {
   const dayCount =
     tripStartDate && tripEndDate
       ? Math.ceil(
-          (new Date(tripEndDate).getTime() - new Date(tripStartDate).getTime()) /
+          (new Date(tripEndDate).getTime() -
+            new Date(tripStartDate).getTime()) /
             (1000 * 60 * 60 * 24),
         ) + 1
       : 5;

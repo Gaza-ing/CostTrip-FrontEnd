@@ -114,7 +114,9 @@ export function TripCard({ trip }: TripCardProps) {
       <div className="px-4 py-3">
         {/* 상태 배지 + 멤버 아바타 */}
         <div className="flex items-center justify-between">
-          <Badge variant={statusBadgeVariant[computeStatusLabel(trip)] || 'default'}>
+          <Badge
+            variant={statusBadgeVariant[computeStatusLabel(trip)] || 'default'}
+          >
             {computeStatusLabel(trip)}
           </Badge>
           <div className="flex -space-x-1.5">
@@ -194,9 +196,8 @@ function computeDdayLabel(trip: Trip): string {
 
   if (today >= start && today <= end) {
     const dayNum =
-      Math.ceil(
-        (today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
-      ) + 1;
+      Math.ceil((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) +
+      1;
     return `Day ${dayNum}`;
   }
 

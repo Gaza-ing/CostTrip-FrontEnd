@@ -39,7 +39,10 @@ interface AppState {
   /** 일정 항목 */
   planItems: import('@/types').PlanItem[];
   addPlanItem: (item: import('@/types').PlanItem) => void;
-  updatePlanItem: (id: string, updates: Partial<import('@/types').PlanItem>) => void;
+  updatePlanItem: (
+    id: string,
+    updates: Partial<import('@/types').PlanItem>,
+  ) => void;
   deletePlanItem: (id: string) => void;
   reorderPlanItems: (items: import('@/types').PlanItem[]) => void;
 
@@ -96,8 +99,7 @@ export const useAppStore = create<AppState>((set) => ({
   setCategoryBudgets: (budgets) => set({ categoryBudgets: budgets }),
 
   planItems: [],
-  addPlanItem: (item) =>
-    set((s) => ({ planItems: [...s.planItems, item] })),
+  addPlanItem: (item) => set((s) => ({ planItems: [...s.planItems, item] })),
   updatePlanItem: (id, updates) =>
     set((s) => ({
       planItems: s.planItems.map((p) =>
