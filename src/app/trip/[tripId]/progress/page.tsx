@@ -5,7 +5,17 @@ import { Badge } from '@/components/ui/Badge';
 import { CATEGORIES } from '@/lib/constants';
 import { formatKRW, cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/app-store';
-import { mockBudgetCategories } from '@/lib/api';
+import {
+  useExpenseStore,
+  useMemberStore,
+  selectSpentByCategory,
+  selectTotalSpent,
+  selectDailyExpenses,
+  selectRecentExpenses,
+  selectMembersByTrip,
+  selectMemberName,
+} from '@/stores';
+import { mockBudgetCategories, mockDays } from '@/lib/api';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
@@ -13,65 +23,6 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
-
-// Mock: 카테고리별 실지출 (trip-001)
-const mockExpenseByCategory: Record<string, number> = {
-  stay: 600000,
-  move: 210000,
-  food: 520000,
-  tour: 150000,
-  shop: 340000,
-  etc: 80000,
-};
-
-// Mock: 일자별 지출 (trip-001, 5일 중 3일 진행)
-const mockDailyExpense = [
-  { dayIndex: 0, date: '07.10', amount: 420000, label: 'Day1' },
-  { dayIndex: 1, date: '07.11', amount: 640000, label: 'Day2' },
-  { dayIndex: 2, date: '07.12', amount: 500000, label: 'Day3' },
-  { dayIndex: 3, date: '07.13', amount: 0, label: 'Day4', isFuture: true },
-  { dayIndex: 4, date: '07.14', amount: 0, label: 'Day5', isFuture: true },
-];
-
-// Mock: 최근 지출 (trip-001)
-const mockRecentExpenses = [
-  {
-    id: 'exp-001',
-    description: '도톤보리 타코야키',
-    categoryId: 'food',
-    amount: 8400,
-    paidBy: '박서준',
-    splitInfo: '4명 균등',
-    time: '오전 12:30',
-  },
-  {
-    id: 'exp-002',
-    description: '유니버셜 입장권',
-    categoryId: 'tour',
-    amount: 96000,
-    paidBy: '김지원',
-    splitInfo: '4명 균등',
-    time: '어제 10:00',
-  },
-  {
-    id: 'exp-003',
-    description: '지하철 1일권',
-    categoryId: 'move',
-    amount: 12000,
-    paidBy: '이하늘',
-    splitInfo: '4명 균등',
-    time: '어제 09:15',
-  },
-  {
-    id: 'exp-004',
-    description: '신사이바시 쇼핑',
-    categoryId: 'shop',
-    amount: 64000,
-    paidBy: '최유나',
-    splitInfo: '4명 균등',
-    time: '어제 16:40',
-  },
-];
 
 // 카테고리별 색상
 const CATEGORY_COLORS: Record<string, string> = {
@@ -88,10 +39,22 @@ export default function ProgressDashboardPage() {
   const tripId = params.tripId as string;
   const [showTable, setShowTable] = useState(false);
 
+  // App store (예산/여행 정보)
   const storeBudgets = useAppStore((s) => s.categoryBudgets);
   const tripStartDate = useAppStore((s) => s.tripStartDate);
   const tripEndDate = useAppStore((s) => s.tripEndDate);
   const tripHeadcount = useAppStore((s) => s.tripHeadcount);
+
+  // Expense store
+  const expenses = useExpenseStore((s) => s.expenses);
+  const spentByCategory = selectSpentByCategory(expenses, tripId);
+  const spentTotal = selectTotalSpent(expenses, tripId);
+  const dailyExpenseMap = selectDailyExpenses(expenses, tripId);
+  const recentExpenses = selectRecentExpenses(expenses, tripId, 4);
+
+  // Member store
+  const allMembers = useMemberStore((s) => s.members);
+  const members = selectMembersByTrip(allMembers, tripId);
 
   // 예산 데이터
   const budgetCategories =
@@ -108,12 +71,6 @@ export default function ProgressDashboardPage() {
     tripId === 'trip-001'
       ? 2400000
       : budgetCategories.reduce((s, bc) => s + bc.budgetAmount, 0);
-
-  // 실지출 합계
-  const spentTotal =
-    tripId === 'trip-001'
-      ? Object.values(mockExpenseByCategory).reduce((s, v) => s + v, 0)
-      : 0;
 
   // 잔여 예산
   const remaining = budgetTotal - spentTotal;
@@ -132,15 +89,32 @@ export default function ProgressDashboardPage() {
           ) + 1
         : 5;
 
-  // 경과 일수 (trip-001은 3일 진행 중)
+  // 일자별 데이터 생성 (스토어 기반)
+  const days =
+    tripId === 'trip-001'
+      ? mockDays.filter((d) => d.tripId === 'trip-001')
+      : Array.from({ length: totalDays }, (_, i) => ({
+          id: `day-new-${i}`,
+          tripId,
+          dayIndex: i,
+          date: '',
+        }));
+
+  // 경과 일수 (trip-001은 완료여행이지만 데모용으로 3일 진행으로 표시)
   const elapsedDays = tripId === 'trip-001' ? 3 : 0;
+
+  const dailyData = days.map((day, i) => ({
+    dayIndex: i,
+    label: `Day${i + 1}`,
+    amount: dailyExpenseMap[day.id] || 0,
+    isFuture: i >= elapsedDays,
+  }));
 
   // 경고 항목
   const warnings = budgetCategories
     .map((bc) => {
       const cat = CATEGORIES.find((c) => c.id === bc.categoryId);
-      const spent =
-        tripId === 'trip-001' ? mockExpenseByCategory[bc.categoryId] || 0 : 0;
+      const spent = spentByCategory[bc.categoryId] || 0;
       if (bc.budgetAmount === 0 && spent > 0)
         return {
           name: cat?.label || '',
@@ -176,9 +150,6 @@ export default function ProgressDashboardPage() {
     budget: number;
     pct: number;
   }[];
-
-  // 일자별 데이터
-  const dailyData = tripId === 'trip-001' ? mockDailyExpense : [];
 
   // 도넛 차트 데이터
   const doughnutData = {
@@ -262,7 +233,7 @@ export default function ProgressDashboardPage() {
           <p
             className={cn(
               'mt-1.5 text-2xl font-bold',
-              remaining >= 0 ? 'text-danger-text' : 'text-danger-text',
+              remaining >= 0 ? 'text-ok-text' : 'text-danger-text',
             )}
           >
             {remaining >= 0
@@ -383,10 +354,7 @@ export default function ProgressDashboardPage() {
           <div className="space-y-4">
             {budgetCategories.map((bc) => {
               const cat = CATEGORIES.find((c) => c.id === bc.categoryId);
-              const spent =
-                tripId === 'trip-001'
-                  ? mockExpenseByCategory[bc.categoryId] || 0
-                  : 0;
+              const spent = spentByCategory[bc.categoryId] || 0;
               const pct =
                 bc.budgetAmount > 0
                   ? Math.round((spent / bc.budgetAmount) * 100)
@@ -396,7 +364,6 @@ export default function ProgressDashboardPage() {
               const isOver = pct >= 100;
               const isWarn = pct >= 80 && pct < 100;
 
-              // 막대 색상 결정
               const barColor = isOver
                 ? 'bg-red-500'
                 : isWarn
@@ -457,7 +424,7 @@ export default function ProgressDashboardPage() {
               {totalDays}일 중 {elapsedDays}일 진행
             </span>
           </div>
-          {dailyData.length > 0 ? (
+          {dailyData.some((d) => d.amount > 0 || !d.isFuture) ? (
             <div className="flex items-end justify-between gap-2 px-2 pt-6 pb-2">
               {dailyData.map((d, i) => {
                 const maxAmount = Math.max(...dailyData.map((dd) => dd.amount));
@@ -470,7 +437,6 @@ export default function ProgressDashboardPage() {
 
                 return (
                   <div key={i} className="flex flex-col items-center flex-1">
-                    {/* 금액 라벨 (막대 위) */}
                     <span
                       className={cn(
                         'text-[11px] font-semibold mb-1.5',
@@ -483,10 +449,9 @@ export default function ProgressDashboardPage() {
                     >
                       {isFuture ? '예정' : formatKRW(d.amount)}
                     </span>
-                    {/* 막대 */}
                     <div
                       className={cn(
-                        'w-8 rounded-[4px] transition-all',
+                        'w-8 rounded-[2px] transition-all',
                         isFuture
                           ? 'bg-surface-bg-alt border border-dashed border-surface-line-strong'
                           : isToday
@@ -495,7 +460,6 @@ export default function ProgressDashboardPage() {
                       )}
                       style={{ height: isFuture ? 24 : barHeight }}
                     />
-                    {/* Day 라벨 (막대 아래) */}
                     <span
                       className={cn(
                         'text-[11px] mt-2',
@@ -506,7 +470,6 @@ export default function ProgressDashboardPage() {
                     >
                       {d.label}
                     </span>
-                    {/* 오늘 dot */}
                     {isToday && (
                       <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-brand" />
                     )}
@@ -532,13 +495,16 @@ export default function ProgressDashboardPage() {
               전체보기
             </Link>
           </div>
-          {tripId === 'trip-001' ? (
+          {recentExpenses.length > 0 ? (
             <div className="space-y-4">
-              {mockRecentExpenses.map((exp) => {
+              {recentExpenses.map((exp) => {
                 const cat = CATEGORIES.find((c) => c.id === exp.categoryId);
+                const paidByName = selectMemberName(
+                  allMembers,
+                  exp.paidByMemberId,
+                );
                 return (
                   <div key={exp.id} className="flex items-center gap-3">
-                    {/* 카테고리 아이콘 */}
                     <div
                       className="flex h-10 w-10 items-center justify-center rounded-full text-base shrink-0"
                       style={{
@@ -547,21 +513,19 @@ export default function ProgressDashboardPage() {
                     >
                       {cat?.icon}
                     </div>
-                    {/* 설명 */}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-ink truncate">
                         {exp.description}
                       </p>
                       <p className="text-xs text-ink-3">
-                        {cat?.label} · {exp.paidBy} 결제 · {exp.splitInfo}
+                        {cat?.label} · {paidByName} 결제 · {members.length}명{' '}
+                        {exp.splitMethod === 'equal' ? '균등' : exp.splitMethod}
                       </p>
                     </div>
-                    {/* 금액 + 시간 */}
                     <div className="text-right shrink-0">
                       <p className="text-sm font-bold text-brand">
                         {formatKRW(exp.amount)}
                       </p>
-                      <p className="text-[11px] text-ink-3">{exp.time}</p>
                     </div>
                   </div>
                 );
@@ -581,12 +545,18 @@ export default function ProgressDashboardPage() {
           <h3 className="text-base font-bold text-ink">정산</h3>
           <span className="text-xs text-ink-3">
             미정산{' '}
-            <span className="font-semibold text-ink">{formatKRW(320000)}</span>
+            <span className="font-semibold text-ink">
+              {formatKRW(spentTotal)}
+            </span>
           </span>
         </div>
         <p className="text-sm text-ink-3 mb-4">
-          지출 18건 · 멤버 {tripHeadcount}명 기준 분담이 계산돼 있어요. 추천
-          송금 3건으로 끝낼 수 있어요.
+          지출{' '}
+          {recentExpenses.length > 0
+            ? expenses.filter((e) => e.tripId === tripId).length
+            : 0}
+          건 · 멤버 {members.length || tripHeadcount}명 기준 분담이 계산돼
+          있어요.
         </p>
         <Link href={`/trip/${tripId}/settlement`} className="block">
           <button className="w-full h-12 rounded-sm bg-brand text-base font-semibold text-on-brand hover:bg-brand-dark transition-colors">
