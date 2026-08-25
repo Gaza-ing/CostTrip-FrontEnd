@@ -1,6 +1,8 @@
 'use client';
 
 import { Card } from '@/components/ui/Card';
+import { HeaderActionButton } from '@/components/layout';
+import { useHeaderAction } from '@/hooks/use-header-action';
 import { CATEGORIES } from '@/lib/constants';
 import { formatKRW, cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/app-store';
@@ -58,6 +60,12 @@ export default function BudgetSetupPage() {
     setCategoryBudgets(localBudgets);
     alert('예산이 저장되었습니다');
   }
+
+  // 헤더 우측 액션: 예산 설정 전용 "예산 저장" 버튼
+  useHeaderAction(
+    <HeaderActionButton onClick={handleSave}>예산 저장</HeaderActionButton>,
+    [localTotal, localBudgets],
+  );
 
   // Chart.js 데이터
   const chartData = {
@@ -432,14 +440,6 @@ export default function BudgetSetupPage() {
               </p>
             </div>
           </Card>
-
-          {/* 저장 버튼 */}
-          <button
-            onClick={handleSave}
-            className="w-full h-12 rounded-sm bg-brand text-base font-semibold text-on-brand transition-colors hover:bg-brand-dark"
-          >
-            예산 저장
-          </button>
         </div>
       </div>
     </div>

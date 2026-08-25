@@ -4,12 +4,15 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { HeaderActionButton } from '@/components/layout';
+import { useHeaderAction } from '@/hooks/use-header-action';
 import { CATEGORIES } from '@/lib/constants';
 import { formatKRW } from '@/lib/utils';
 import { mockMembers, mockBudgetCategories } from '@/lib/api';
 import { useAppStore } from '@/stores/app-store';
+import { Plus } from 'lucide-react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 
 // Mock: Day별 요약
 const mockDaySummary = [
@@ -118,7 +121,17 @@ const mockExpenseByCategory: Record<string, number> = {
 
 export default function TripMainPage() {
   const params = useParams();
+  const router = useRouter();
   const tripId = params.tripId as string;
+
+  // 헤더 우측 액션: 여행 메인 전용 "+ 일정 추가" 버튼 (오늘 Day의 계획 화면으로 이동)
+  useHeaderAction(
+    <HeaderActionButton onClick={() => router.push(`/trip/${tripId}/plan/0`)}>
+      <Plus size={16} />
+      일정 추가
+    </HeaderActionButton>,
+    [tripId],
+  );
 
   const totalBudget = useAppStore((s) => s.totalBudget);
   const storeBudgets = useAppStore((s) => s.categoryBudgets);
@@ -186,7 +199,8 @@ export default function TripMainPage() {
     tripId === 'trip-001'
       ? 1980000
       : storePlanItems.reduce((sum, p) => sum + p.estimatedCost, 0);
-  const totalUsagePercent = Math.round((totalPlanned / totalBudget) * 100);
+  const totalUsagePercent =
+    totalBudget > 0 ? Math.round((totalPlanned / totalBudget) * 100) : 0;
   const remaining = totalBudget - totalPlanned;
 
   // 경고 항목

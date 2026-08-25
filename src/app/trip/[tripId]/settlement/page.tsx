@@ -3,6 +3,8 @@
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { HeaderActionButton } from '@/components/layout';
+import { useHeaderAction } from '@/hooks/use-header-action';
 import { formatKRW, cn } from '@/lib/utils';
 import {
   useExpenseStore,
@@ -11,6 +13,7 @@ import {
   selectMembersByTrip,
   selectMemberName,
 } from '@/stores';
+import { Check } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
@@ -211,6 +214,22 @@ export default function SettlementPage() {
     navigator.clipboard.writeText(text);
     alert('송금 내역이 복사되었습니다');
   }
+
+  // 헤더 우측 액션: 정산 전용 "공유" + "정산 완료" 버튼
+  const allSettled =
+    transfers.length > 0 && transfers.every((t) => t.isSettled);
+  useHeaderAction(
+    <div className="flex items-center gap-2">
+      <HeaderActionButton variant="ghost" onClick={copyToClipboard}>
+        📤 공유
+      </HeaderActionButton>
+      <HeaderActionButton disabled={!allSettled}>
+        <Check size={16} />
+        정산 완료
+      </HeaderActionButton>
+    </div>,
+    [transfers],
+  );
 
   // 빈 상태
   if (members.length <= 1) {

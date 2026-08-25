@@ -83,12 +83,13 @@ export function Topbar({
         </div>
 
         {/* 알림 */}
-        <button
-          className="flex h-9 w-9 items-center justify-center rounded-pill border border-surface-line text-ink-2 hover:bg-surface-bg-alt transition-colors"
+        <Link
+          href="/notifications"
+          className="flex h-9 w-9 items-center justify-center rounded-pill border border-surface-line text-warn hover:bg-surface-bg-alt transition-colors"
           aria-label="알림"
         >
           <Bell size={16} />
-        </button>
+        </Link>
 
         {/* 여행 생성 */}
         {onCreateTrip && (
@@ -101,8 +102,13 @@ export function Topbar({
           </button>
         )}
 
-        {/* 페이지별 동적 액션 */}
-        {action}
+        {/* 페이지별 동적 액션 (없으면 기본 프로필 아바타로 대체) */}
+        {action ??
+          (!onCreateTrip && (
+            <div className="flex h-9 w-9 items-center justify-center rounded-pill bg-brand text-sm font-medium text-on-brand">
+              지
+            </div>
+          ))}
       </div>
     </header>
   );

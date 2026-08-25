@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { SlidePanel } from '@/components/ui/SlidePanel';
+import { HeaderActionButton } from '@/components/layout';
 import { useHeaderAction } from '@/hooks/use-header-action';
 import { cn } from '@/lib/utils';
 import { useMemberStore, selectMembersByTrip } from '@/stores';
@@ -48,13 +49,10 @@ export default function MembersPage() {
 
   // 헤더 우측 액션: 그룹·멤버 페이지 전용 "멤버 초대" 버튼
   useHeaderAction(
-    <button
-      onClick={() => setInviteOpen(true)}
-      className="flex h-9 items-center gap-1.5 rounded-pill bg-brand px-4 text-sm font-medium text-on-brand transition-colors hover:bg-brand-dark"
-    >
+    <HeaderActionButton onClick={() => setInviteOpen(true)}>
       <Plus size={16} />
-      <span>멤버 초대</span>
-    </button>,
+      멤버 초대
+    </HeaderActionButton>,
   );
 
   function handleCopyCode() {

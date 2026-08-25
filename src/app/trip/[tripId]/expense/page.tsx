@@ -3,6 +3,8 @@
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { HeaderActionButton } from '@/components/layout';
+import { useHeaderAction } from '@/hooks/use-header-action';
 import { CATEGORIES } from '@/lib/constants';
 import { formatKRW, cn } from '@/lib/utils';
 import {
@@ -14,8 +16,9 @@ import {
   selectTotalSpent,
 } from '@/stores';
 import { useAppStore } from '@/stores/app-store';
+import { Plus } from 'lucide-react';
 import Link from 'next/link';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { useState, useMemo } from 'react';
 
 type SortKey = 'date' | 'amount';
@@ -26,8 +29,20 @@ const MEMBER_COLORS = ['#6366F1', '#10B981', '#F97316', '#EC4899'];
 
 export default function ExpenseListPage() {
   const params = useParams();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const tripId = params.tripId as string;
+
+  // 헤더 우측 액션: 지출 내역 전용 "+ 지출 추가" 버튼
+  useHeaderAction(
+    <HeaderActionButton
+      onClick={() => router.push(`/trip/${tripId}/expense/add`)}
+    >
+      <Plus size={16} />
+      지출 추가
+    </HeaderActionButton>,
+    [tripId],
+  );
 
   const initialCategory = searchParams.get('category');
 
@@ -197,9 +212,6 @@ export default function ExpenseListPage() {
         <span className="ml-auto text-xs text-ink-3">
           전체 {tripExpenses.length}건 · {formatKRW(totalSpent)}
         </span>
-        <Link href={`/trip/${tripId}/expense/add`}>
-          <Button size="sm">+ 지출 추가</Button>
-        </Link>
       </div>
 
       {/* Day 필터 + 기간 */}

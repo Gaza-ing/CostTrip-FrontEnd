@@ -24,15 +24,17 @@ export default function GlobalLayout({
   const completed = trips?.filter((t) => t.status === 'completed').length ?? 0;
 
   const isHome = pathname === '/home';
-  const title = isHome
-    ? '내 여행'
-    : pathname === '/notifications'
-      ? '알림'
-      : '설정';
+  const isNotifications = pathname === '/notifications';
+  const title = isHome ? '내 여행' : isNotifications ? '알림' : '설정';
   const subtitle = isHome
     ? `진행 중 ${ongoing} · 예정 ${planning} · 완료 ${completed}`
     : undefined;
-  const searchEnabled = isHome || pathname === '/notifications';
+  const searchEnabled = isHome || isNotifications;
+  const searchPlaceholder = isHome
+    ? '여행 검색'
+    : isNotifications
+      ? '알림 검색'
+      : '설정 검색';
 
   const mainMarginLeft = isDesktop && sidebarOpen ? sidebarWidth : 0;
 
@@ -47,8 +49,8 @@ export default function GlobalLayout({
           title={title}
           subtitle={subtitle}
           searchEnabled={searchEnabled}
-          searchPlaceholder={isHome ? '여행 검색' : '검색...'}
-          onCreateTrip={() => setCreateOpen(true)}
+          searchPlaceholder={searchPlaceholder}
+          onCreateTrip={isHome ? () => setCreateOpen(true) : undefined}
         />
         <main className="flex-1 p-4 lg:p-6">{children}</main>
       </div>
