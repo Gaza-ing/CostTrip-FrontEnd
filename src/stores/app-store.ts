@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { create } from 'zustand';
 
 interface AppState {
@@ -58,6 +59,10 @@ interface AppState {
     subtitle: string;
   }) => void;
   clearEditMode: () => void;
+
+  /** 페이지별 헤더 우측 액션 (사이드바 섹션이 바뀌면 각 페이지가 자신의 액션으로 교체) */
+  headerAction: ReactNode | null;
+  setHeaderAction: (action: ReactNode | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -114,4 +119,7 @@ export const useAppStore = create<AppState>((set) => ({
   setEditMode: (mode) => set({ editMode: mode }),
   clearEditMode: () =>
     set({ editMode: { active: false, title: '', subtitle: '' } }),
+
+  headerAction: null,
+  setHeaderAction: (action) => set({ headerAction: action }),
 }));

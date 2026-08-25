@@ -23,6 +23,7 @@ export default function TripLayout({
     setTripDates,
     tripTitle,
     tripHeadcount,
+    headerAction,
   } = useAppStore();
   const isDesktop = useIsDesktop();
 
@@ -106,6 +107,7 @@ export default function TripLayout({
           subtitle={headerSubtitle}
           searchEnabled
           searchPlaceholder="일정·지출 검색"
+          action={headerAction}
         />
         <main className="flex-1 p-4 lg:p-6">{children}</main>
       </div>
