@@ -11,6 +11,8 @@ interface TopbarProps {
   searchEnabled?: boolean;
   searchPlaceholder?: string;
   onCreateTrip?: () => void;
+  /** 페이지별로 달라지는 우측 액션 (예: 그룹·멤버 페이지의 "멤버 초대" 버튼) */
+  action?: React.ReactNode;
 }
 
 export function Topbar({
@@ -19,6 +21,7 @@ export function Topbar({
   searchEnabled = true,
   searchPlaceholder = '여행 검색',
   onCreateTrip,
+  action,
 }: TopbarProps) {
   const { sidebarOpen, toggleSidebar } = useAppStore();
 
@@ -97,6 +100,9 @@ export function Topbar({
             <span>여행 생성</span>
           </button>
         )}
+
+        {/* 페이지별 동적 액션 */}
+        {action}
       </div>
     </header>
   );
