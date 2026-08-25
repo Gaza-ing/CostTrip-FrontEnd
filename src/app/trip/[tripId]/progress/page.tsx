@@ -2,6 +2,8 @@
 
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { HeaderActionButton } from '@/components/layout';
+import { useHeaderAction } from '@/hooks/use-header-action';
 import { CATEGORIES } from '@/lib/constants';
 import { formatKRW, cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/app-store';
@@ -16,8 +18,9 @@ import {
   selectMemberName,
 } from '@/stores';
 import { mockBudgetCategories, mockDays } from '@/lib/api';
+import { Plus } from 'lucide-react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
@@ -36,8 +39,23 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 export default function ProgressDashboardPage() {
   const params = useParams();
+  const router = useRouter();
   const tripId = params.tripId as string;
   const [showTable, setShowTable] = useState(false);
+
+  // 헤더 우측 액션: 진행 대시보드 전용 LIVE 배지 + "+ 지출 추가" 버튼
+  useHeaderAction(
+    <div className="flex items-center gap-2">
+      <Badge variant="brand">LIVE</Badge>
+      <HeaderActionButton
+        onClick={() => router.push(`/trip/${tripId}/expense/add`)}
+      >
+        <Plus size={16} />
+        지출 추가
+      </HeaderActionButton>
+    </div>,
+    [tripId],
+  );
 
   // App store (예산/여행 정보)
   const storeBudgets = useAppStore((s) => s.categoryBudgets);

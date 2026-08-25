@@ -45,10 +45,13 @@ export default function TripLayout({
   let headerTitle = tripTitle;
   let headerSubtitle: string | React.ReactNode =
     `${tripStartDate.replace(/-/g, '.')}~${tripEndDate.replace(/-/g, '.')} · ${durationLabel}`;
+  // 페이지별 검색 placeholder (mockup web-top .wt-search 기준)
+  let searchPlaceholder = '일정·지출 검색';
 
   if (editMode.active) {
     headerTitle = editMode.title;
     headerSubtitle = editMode.subtitle;
+    searchPlaceholder = '여행·지출 검색';
   } else if (subPath.startsWith('/plan')) {
     const dayMatch = subPath.match(/\/plan\/(\d+)/);
     const dayNum = dayMatch ? parseInt(dayMatch[1]) + 1 : 1;
@@ -64,6 +67,7 @@ export default function TripLayout({
         · Day {dayNum}
       </span>
     );
+    searchPlaceholder = '일정·장소 검색';
   } else if (subPath === '' || subPath === '/') {
     headerTitle = tripTitle;
     headerSubtitle = (
@@ -76,21 +80,29 @@ export default function TripLayout({
         · {durationLabel} · {tripHeadcount}명
       </span>
     );
+    searchPlaceholder = '일정·지출 검색';
   } else if (subPath === '/budget') {
     headerTitle = '예산 설정';
     headerSubtitle = `${tripTitle} · 전체 + 카테고리별 예산`;
+    searchPlaceholder = '여행·지출 검색';
   } else if (subPath === '/members') {
     headerTitle = '그룹 · 멤버';
     headerSubtitle = `${tripTitle} · ${tripHeadcount}명`;
+    searchPlaceholder = '멤버 검색';
   } else if (subPath === '/progress') {
     headerTitle = '진행 대시보드';
     headerSubtitle = `${tripTitle} · 예산 대비 실지출`;
+    searchPlaceholder = '여행·지출 검색';
   } else if (subPath === '/expense') {
     headerTitle = '지출 내역';
     headerSubtitle = tripTitle;
+    searchPlaceholder = '지출 검색';
   } else if (subPath === '/settlement') {
     headerTitle = '정산';
     headerSubtitle = tripTitle;
+    searchPlaceholder = '멤버·지출 검색';
+  } else if (subPath === '/expense/add') {
+    searchPlaceholder = '여행·지출 검색';
   }
 
   const mainMarginLeft = isDesktop && sidebarOpen ? sidebarWidth : 0;
@@ -106,7 +118,7 @@ export default function TripLayout({
           title={headerTitle}
           subtitle={headerSubtitle}
           searchEnabled
-          searchPlaceholder="일정·지출 검색"
+          searchPlaceholder={searchPlaceholder}
           action={headerAction}
         />
         <main className="flex-1 p-4 lg:p-6">{children}</main>

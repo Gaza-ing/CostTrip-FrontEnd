@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { SlidePanel } from '@/components/ui/SlidePanel';
+import { HeaderActionButton } from '@/components/layout';
+import { useHeaderAction } from '@/hooks/use-header-action';
 import { CATEGORIES } from '@/lib/constants';
 import { formatKRW, cn } from '@/lib/utils';
 import { mockDays } from '@/lib/api';
@@ -215,6 +217,15 @@ export default function DayPlanPage() {
       setItems((prev) => prev.filter((item) => item.id !== id));
     }
   }
+
+  // 헤더 우측 액션: 날짜별 계획 전용 "+ 항목 추가" 버튼
+  useHeaderAction(
+    <HeaderActionButton onClick={openAddPanel}>
+      <Plus size={16} />
+      항목 추가
+    </HeaderActionButton>,
+    [dayIndex],
+  );
 
   return (
     <div className="space-y-5">
