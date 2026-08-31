@@ -28,7 +28,7 @@ const MEMBER_COLORS = ['bg-brand', 'bg-ok', 'bg-warn', 'bg-member-purple'];
 export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
   const router = useRouter();
   const createTrip = useCreateTrip();
-  const { setTripInfo, setTripDates, setTotalBudget } = useAppStore();
+  const { setTripInfo, setTripDates } = useAppStore();
 
   const [form, setForm] = useState({
     title: '',
@@ -110,7 +110,6 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
             headcount: form.headcount,
           });
           setTripDates(form.startDate, form.endDate);
-          setTotalBudget(form.totalBudget);
           onClose();
           router.push(`/trip/${trip.id}`);
         },

@@ -31,22 +31,6 @@ interface AppState {
   tripEndDate: string;
   setTripDates: (startDate: string, endDate: string) => void;
 
-  /** 예산 */
-  totalBudget: number;
-  categoryBudgets: Record<string, number>;
-  setTotalBudget: (amount: number) => void;
-  setCategoryBudgets: (budgets: Record<string, number>) => void;
-
-  /** 일정 항목 */
-  planItems: import('@/types').PlanItem[];
-  addPlanItem: (item: import('@/types').PlanItem) => void;
-  updatePlanItem: (
-    id: string,
-    updates: Partial<import('@/types').PlanItem>,
-  ) => void;
-  deletePlanItem: (id: string) => void;
-  reorderPlanItems: (items: import('@/types').PlanItem[]) => void;
-
   /** 편집 패널 상태 */
   editMode: {
     active: boolean;
@@ -90,30 +74,6 @@ export const useAppStore = create<AppState>((set) => ({
   tripEndDate: '2026-07-14',
   setTripDates: (startDate, endDate) =>
     set({ tripStartDate: startDate, tripEndDate: endDate }),
-
-  totalBudget: 0,
-  categoryBudgets: {
-    stay: 0,
-    move: 0,
-    food: 0,
-    tour: 0,
-    shop: 0,
-    etc: 0,
-  },
-  setTotalBudget: (amount) => set({ totalBudget: amount }),
-  setCategoryBudgets: (budgets) => set({ categoryBudgets: budgets }),
-
-  planItems: [],
-  addPlanItem: (item) => set((s) => ({ planItems: [...s.planItems, item] })),
-  updatePlanItem: (id, updates) =>
-    set((s) => ({
-      planItems: s.planItems.map((p) =>
-        p.id === id ? { ...p, ...updates } : p,
-      ),
-    })),
-  deletePlanItem: (id) =>
-    set((s) => ({ planItems: s.planItems.filter((p) => p.id !== id) })),
-  reorderPlanItems: (items) => set({ planItems: items }),
 
   editMode: { active: false, title: '', subtitle: '' },
   setEditMode: (mode) => set({ editMode: mode }),

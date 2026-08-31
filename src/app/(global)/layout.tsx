@@ -2,6 +2,7 @@
 
 import { MobileTabBar, Sidebar, Topbar } from '@/components/layout';
 import { TripCreateModal } from '@/components/trip/TripCreateModal';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useTrips } from '@/hooks/use-trips';
 import { useIsDesktop } from '@/hooks/use-is-desktop';
 import { useAppStore } from '@/stores/app-store';
@@ -13,6 +14,14 @@ export default function GlobalLayout({
 }: {
   children: React.ReactNode;
 }) {
+  return (
+    <AuthGuard>
+      <GlobalLayoutInner>{children}</GlobalLayoutInner>
+    </AuthGuard>
+  );
+}
+
+function GlobalLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data: trips } = useTrips();
   const { sidebarOpen, sidebarWidth } = useAppStore();

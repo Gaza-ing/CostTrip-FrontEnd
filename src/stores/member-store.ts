@@ -1,53 +1,28 @@
 import { create } from 'zustand';
 import type { Member } from '@/types';
 
-/** 멤버 seed 데이터 (trip-001 오사카 여행) */
-const SEED_MEMBERS: Member[] = [
-  {
-    id: 'member-001',
-    tripId: 'trip-001',
-    userId: 'user-001',
-    displayName: '종현',
-    role: 'owner',
-    inviteStatus: 'accepted',
-  },
-  {
-    id: 'member-002',
-    tripId: 'trip-001',
-    userId: 'user-002',
-    displayName: '민지',
-    role: 'editor',
-    inviteStatus: 'accepted',
-  },
-  {
-    id: 'member-003',
-    tripId: 'trip-001',
-    userId: 'user-003',
-    displayName: '수현',
-    role: 'editor',
-    inviteStatus: 'accepted',
-  },
-  {
-    id: 'member-004',
-    tripId: 'trip-001',
-    userId: null,
-    displayName: '지훈',
-    role: 'viewer',
-    inviteStatus: 'accepted',
-  },
-];
-
+/**
+ * 멤버 클라이언트 스토어.
+ *
+ * 멤버 데이터의 원천은 백엔드(useMembers 훅)이다. 이 스토어는 아직
+ * 서버 연동 전인 화면(expense/progress/settlement 등)이 참조하는 과도기용이며,
+ * 각 화면이 서버 훅으로 전환되면 제거 대상이다.
+ * selectMembersByTrip / selectMemberName 은 서버 배열에도 쓰는 순수 함수라 유지한다.
+ */
 interface MemberState {
   members: Member[];
 
   // Actions
+  setMembers: (members: Member[]) => void;
   addMember: (member: Member) => void;
   updateMember: (id: string, updates: Partial<Member>) => void;
   removeMember: (id: string) => void;
 }
 
 export const useMemberStore = create<MemberState>((set) => ({
-  members: SEED_MEMBERS,
+  members: [],
+
+  setMembers: (members) => set({ members }),
 
   addMember: (member) => set((s) => ({ members: [...s.members, member] })),
 

@@ -6,18 +6,11 @@ import { HeaderActionButton } from '@/components/layout';
 import { useHeaderAction } from '@/hooks/use-header-action';
 import { CATEGORIES } from '@/lib/constants';
 import { formatKRW, cn } from '@/lib/utils';
-import { useAppStore } from '@/stores/app-store';
-import {
-  useExpenseStore,
-  useMemberStore,
-  selectSpentByCategory,
-  selectTotalSpent,
-  selectDailyExpenses,
-  selectRecentExpenses,
-  selectMembersByTrip,
-  selectMemberName,
-} from '@/stores';
-import { mockBudgetCategories, mockDays } from '@/lib/api';
+import { useTrip } from '@/hooks/use-trips';
+import { useMembers } from '@/hooks/use-members';
+import { useExpenses } from '@/hooks/use-expenses';
+import { useBudgets } from '@/hooks/use-budgets';
+import { useDays } from '@/hooks/use-plan';
 import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -57,38 +50,42 @@ export default function ProgressDashboardPage() {
     [tripId],
   );
 
-  // App store (예산/여행 정보)
-  const storeBudgets = useAppStore((s) => s.categoryBudgets);
-  const tripStartDate = useAppStore((s) => s.tripStartDate);
-  const tripEndDate = useAppStore((s) => s.tripEndDate);
-  const tripHeadcount = useAppStore((s) => s.tripHeadcount);
+  // 서버 데이터
+  const { data: trip } = useTrip(tripId);
+  const { data: members = [] } = useMembers(tripId);
+  const { data: expenses = [] } = useExpenses(tripId);
+  const { data: budgetData } = useBudgets(tripId);
+  const { data: days = [] } = useDays(tripId, trip?.startDate);
 
-  // Expense store
-  const expenses = useExpenseStore((s) => s.expenses);
-  const spentByCategory = selectSpentByCategory(expenses, tripId);
-  const spentTotal = selectTotalSpent(expenses, tripId);
-  const dailyExpenseMap = selectDailyExpenses(expenses, tripId);
-  const recentExpenses = selectRecentExpenses(expenses, tripId, 4);
+  const tripHeadcount = members.length || trip?.headcount || 1;
 
-  // Member store
-  const allMembers = useMemberStore((s) => s.members);
-  const members = selectMembersByTrip(allMembers, tripId);
+  // 지출 집계
+  const spentByCategory: Record<string, number> = {};
+  for (const e of expenses) {
+    spentByCategory[e.categoryId] =
+      (spentByCategory[e.categoryId] || 0) + e.amount;
+  }
+  const spentTotal = expenses.reduce((s, e) => s + e.amount, 0);
+  const recentExpenses = [...expenses]
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
+    .slice(0, 4);
 
-  // 예산 데이터
-  const budgetCategories =
-    tripId === 'trip-001'
-      ? mockBudgetCategories.filter((bc) => bc.tripId === 'trip-001')
-      : CATEGORIES.map((cat, i) => ({
-          id: `bc-new-${i}`,
-          tripId,
-          categoryId: cat.id,
-          budgetAmount: storeBudgets[cat.id] || 0,
-        }));
+  function memberName(memberId: string): string {
+    return members.find((m) => m.id === memberId)?.displayName || '알 수 없음';
+  }
 
-  const budgetTotal =
-    tripId === 'trip-001'
-      ? 2400000
-      : budgetCategories.reduce((s, bc) => s + bc.budgetAmount, 0);
+  // 예산 데이터 (모든 카테고리를 0으로 채우고 서버값 덮어쓰기)
+  const budgetCategories = CATEGORIES.map((cat, i) => ({
+    id: `bc-${i}`,
+    tripId,
+    categoryId: cat.id,
+    budgetAmount: budgetData?.categoryBudgets[cat.id] ?? 0,
+  }));
+
+  const budgetTotal = budgetData?.totalBudget ?? 0;
 
   // 잔여 예산
   const remaining = budgetTotal - spentTotal;
@@ -96,35 +93,24 @@ export default function ProgressDashboardPage() {
     budgetTotal > 0 ? Math.round((spentTotal / budgetTotal) * 100) : 0;
 
   // 일수 계산
-  const totalDays =
-    tripId === 'trip-001'
-      ? 5
-      : tripStartDate && tripEndDate
-        ? Math.ceil(
-            (new Date(tripEndDate).getTime() -
-              new Date(tripStartDate).getTime()) /
-              (1000 * 60 * 60 * 24),
-          ) + 1
-        : 5;
+  const totalDays = days.length;
 
-  // 일자별 데이터 생성 (스토어 기반)
-  const days =
-    tripId === 'trip-001'
-      ? mockDays.filter((d) => d.tripId === 'trip-001')
-      : Array.from({ length: totalDays }, (_, i) => ({
-          id: `day-new-${i}`,
-          tripId,
-          dayIndex: i,
-          date: '',
-        }));
+  // 경과 일수: 오늘 기준 여행 시작일로부터 며칠 지났는지 (0~totalDays)
+  let elapsedDays = 0;
+  if (trip?.startDate && totalDays > 0) {
+    const start = new Date(trip.startDate);
+    const today = new Date();
+    const diff = Math.floor(
+      (today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    elapsedDays = Math.max(0, Math.min(diff + 1, totalDays));
+  }
 
-  // 경과 일수 (trip-001은 완료여행이지만 데모용으로 3일 진행으로 표시)
-  const elapsedDays = tripId === 'trip-001' ? 3 : 0;
-
+  // 지출에 day 정보가 없어(백엔드 응답 미포함) 일자별 금액은 표시하지 않음.
   const dailyData = days.map((day, i) => ({
     dayIndex: i,
     label: `Day${i + 1}`,
-    amount: dailyExpenseMap[day.id] || 0,
+    amount: 0,
     isFuture: i >= elapsedDays,
   }));
 
@@ -517,10 +503,7 @@ export default function ProgressDashboardPage() {
             <div className="space-y-4">
               {recentExpenses.map((exp) => {
                 const cat = CATEGORIES.find((c) => c.id === exp.categoryId);
-                const paidByName = selectMemberName(
-                  allMembers,
-                  exp.paidByMemberId,
-                );
+                const paidByName = memberName(exp.paidByMemberId);
                 return (
                   <div key={exp.id} className="flex items-center gap-3">
                     <div
@@ -569,12 +552,8 @@ export default function ProgressDashboardPage() {
           </span>
         </div>
         <p className="text-sm text-ink-3 mb-4">
-          지출{' '}
-          {recentExpenses.length > 0
-            ? expenses.filter((e) => e.tripId === tripId).length
-            : 0}
-          건 · 멤버 {members.length || tripHeadcount}명 기준 분담이 계산돼
-          있어요.
+          지출 {expenses.length}건 · 멤버 {members.length || tripHeadcount}명
+          기준 분담이 계산돼 있어요.
         </p>
         <Link href={`/trip/${tripId}/settlement`} className="block">
           <button className="w-full h-12 rounded-sm bg-brand text-base font-semibold text-on-brand hover:bg-brand-dark transition-colors">

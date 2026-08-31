@@ -7,66 +7,83 @@ import { SlidePanel } from '@/components/ui/SlidePanel';
 import { HeaderActionButton } from '@/components/layout';
 import { useHeaderAction } from '@/hooks/use-header-action';
 import { cn } from '@/lib/utils';
-import { useMemberStore, selectMembersByTrip } from '@/stores';
+import {
+  useMembers,
+  useAddVirtualMember,
+  useUpdateMemberRole,
+  useRemoveMember,
+  useCreateInvite,
+} from '@/hooks/use-members';
 import { Plus } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
-import type { Member } from '@/types';
+import type { Invite } from '@/types';
 
 // 멤버 아바타 색상
 const MEMBER_COLORS = ['#6366F1', '#10B981', '#F97316', '#8B5CF6'];
-
-// Mock: 대기 중 초대
-const PENDING_INVITES = [
-  { id: 'invite-001', email: 'friend@kakao.com', createdAt: '2026-07-08' },
-];
 
 export default function MembersPage() {
   const params = useParams();
   const tripId = params.tripId as string;
 
-  // Stores
-  const allMembers = useMemberStore((s) => s.members);
-  const addMember = useMemberStore((s) => s.addMember);
-  const removeMember = useMemberStore((s) => s.removeMember);
-  const updateMember = useMemberStore((s) => s.updateMember);
-  const members = selectMembersByTrip(allMembers, tripId);
+  // 서버 데이터
+  const { data: members = [], isLoading } = useMembers(tripId);
+  const addVirtual = useAddVirtualMember(tripId);
+  const updateRole = useUpdateMemberRole(tripId);
+  const removeMemberMut = useRemoveMember(tripId);
+  const createInviteMut = useCreateInvite(tripId);
 
   // UI 상태
   const [showAddVirtual, setShowAddVirtual] = useState(false);
   const [virtualName, setVirtualName] = useState('');
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteTab, setInviteTab] = useState<'link' | 'code'>('link');
+  const [invite, setInvite] = useState<Invite | null>(null);
 
   // 통계
   const totalMembers = members.length;
   const registeredMembers = members.filter((m) => m.userId !== null).length;
-  const pendingInvites = PENDING_INVITES.length;
+  const pendingInvites = members.filter(
+    (m) => m.inviteStatus === 'invited',
+  ).length;
 
-  // 초대 코드 (mock)
-  const inviteCode = '7K9 2F4';
-  const inviteLink = `costtrip.app/join/${inviteCode.replace(/\s/g, '')}`;
+  // 초대 코드/링크 (서버 생성 결과. 아직 없으면 안내)
+  const inviteCode = invite?.inviteCode ?? '- - -';
+  const inviteLink = invite?.inviteLink ?? '';
+
+  // 초대 패널 열 때 코드가 없으면 생성
+  function openInvite() {
+    setInviteOpen(true);
+    if (!invite) {
+      createInviteMut.mutate(
+        { defaultRole: 'editor' },
+        { onSuccess: (data) => setInvite(data) },
+      );
+    }
+  }
 
   // 헤더 우측 액션: 그룹·멤버 페이지 전용 "멤버 초대" 버튼
   useHeaderAction(
-    <HeaderActionButton onClick={() => setInviteOpen(true)}>
+    <HeaderActionButton onClick={openInvite}>
       <Plus size={16} />
       멤버 초대
     </HeaderActionButton>,
   );
 
   function handleCopyCode() {
-    navigator.clipboard.writeText(inviteCode.replace(/\s/g, ''));
+    if (!invite) return;
+    navigator.clipboard.writeText(invite.inviteCode.replace(/\s/g, ''));
     alert('초대 코드가 복사되었습니다');
   }
 
   function handleCopyLink() {
+    if (!inviteLink) return;
     navigator.clipboard.writeText(inviteLink);
     alert('초대 링크가 복사되었습니다');
   }
 
   function handleRoleChange(memberId: string, newRole: 'editor' | 'viewer') {
-    updateMember(memberId, { role: newRole });
+    updateRole.mutate({ memberId, role: newRole });
   }
 
   function handleRemoveMember(memberId: string) {
@@ -74,23 +91,29 @@ export default function MembersPage() {
     if (!member) return;
     if (member.role === 'owner') return;
     if (confirm(`${member.displayName}님을 여행에서 제거할까요?`)) {
-      removeMember(memberId);
+      removeMemberMut.mutate(memberId);
     }
   }
 
   function handleAddVirtualMember() {
     if (!virtualName.trim()) return;
-    const newMember: Member = {
-      id: `member-virtual-${crypto.randomUUID()}`,
-      tripId,
-      userId: null,
-      displayName: virtualName.trim(),
-      role: 'viewer',
-      inviteStatus: 'accepted',
-    };
-    addMember(newMember);
-    setVirtualName('');
-    setShowAddVirtual(false);
+    addVirtual.mutate(
+      { displayName: virtualName.trim(), role: 'viewer' },
+      {
+        onSuccess: () => {
+          setVirtualName('');
+          setShowAddVirtual(false);
+        },
+      },
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="py-20 text-center text-sm text-ink-3">
+        멤버 불러오는 중...
+      </div>
+    );
   }
 
   // 빈 상태
@@ -115,19 +138,35 @@ export default function MembersPage() {
             </span>
             <Badge variant="brand">유효 7일</Badge>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          {invite ? (
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="ghost"
+                fullWidth
+                size="sm"
+                onClick={handleCopyCode}
+              >
+                📋 코드 복사
+              </Button>
+              <Button fullWidth size="sm" onClick={handleCopyLink}>
+                🔗 링크 복사
+              </Button>
+            </div>
+          ) : (
             <Button
-              variant="ghost"
               fullWidth
               size="sm"
-              onClick={handleCopyCode}
+              disabled={createInviteMut.isPending}
+              onClick={() =>
+                createInviteMut.mutate(
+                  { defaultRole: 'editor' },
+                  { onSuccess: (data) => setInvite(data) },
+                )
+              }
             >
-              📋 코드 복사
+              {createInviteMut.isPending ? '생성 중...' : '초대 코드 생성'}
             </Button>
-            <Button fullWidth size="sm" onClick={handleCopyLink}>
-              🔗 링크 복사
-            </Button>
-          </div>
+          )}
         </Card>
       </div>
     );
@@ -279,35 +318,6 @@ export default function MembersPage() {
           </div>
 
           {/* 대기 중 초대 */}
-          {PENDING_INVITES.length > 0 && (
-            <>
-              <div className="my-4 border-t border-surface-line" />
-              <h4 className="text-sm font-bold text-ink mb-3">대기 중 초대</h4>
-              {PENDING_INVITES.map((invite) => (
-                <div key={invite.id} className="flex items-center gap-3 py-2">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-bg-alt text-sm">
-                    ✉️
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-ink truncate">
-                      {invite.email}
-                    </p>
-                    <p className="text-[11px] text-ink-3">
-                      초대 발송됨 · 응답 대기
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="sm">
-                      재발송
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      취소
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </>
-          )}
 
           {/* 가상 멤버 추가 */}
           <div className="mt-4 pt-3 border-t border-surface-line">
