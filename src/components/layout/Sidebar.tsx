@@ -17,6 +17,7 @@ import {
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/stores/app-store';
+import { useMe } from '@/hooks/use-auth-user';
 import { useRef, useCallback } from 'react';
 import type { ElementType } from 'react';
 
@@ -69,6 +70,7 @@ export function Sidebar({ tripId, tripTitle }: SidebarProps) {
   const pathname = usePathname();
   const { sidebarOpen, sidebarWidth, toggleSidebar, setSidebarWidth } =
     useAppStore();
+  const { data: me } = useMe();
   const tripDestination = useAppStore((s) => s.tripDestination);
   const tripHeadcount = useAppStore((s) => s.tripHeadcount);
   const tripStartDate = useAppStore((s) => s.tripStartDate);
@@ -264,11 +266,13 @@ export function Sidebar({ tripId, tripTitle }: SidebarProps) {
       <div className="border-t border-surface-line p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-pill bg-brand text-sm font-medium text-on-brand">
-            지
+            {(me?.displayName || '?').charAt(0)}
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-ink truncate">김지원</p>
-            <p className="text-xs text-ink-3">owner</p>
+            <p className="text-sm font-medium text-ink truncate">
+              {me?.displayName || '사용자'}
+            </p>
+            <p className="text-xs text-ink-3 truncate">{me?.email || ''}</p>
           </div>
         </div>
       </div>

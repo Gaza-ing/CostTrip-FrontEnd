@@ -23,14 +23,14 @@ export default function HomePage() {
   const filteredTrips =
     trips?.filter((t) => filter === 'all' || t.status === filter) ?? [];
 
-  // Web 상단 stat 계산
+  // Web 상단 stat 계산 (여행 목록에서 파생 가능한 값만)
   const stats = trips
     ? {
         ongoing: trips.filter((t) => t.status === 'in_progress').length,
         planning: trips.filter((t) => t.status === 'planning').length,
+        completed: trips.filter((t) => t.status === 'completed').length,
         totalBudget: trips.reduce((sum, t) => sum + t.totalBudget, 0),
-        totalExpense: 3252000, // mock
-        noBudgetCount: 0, // mock
+        noBudgetCount: trips.filter((t) => t.totalBudget === 0).length,
       }
     : null;
 
@@ -83,15 +83,11 @@ export default function HomePage() {
         <div className="hidden lg:grid grid-cols-4 gap-4">
           <StatCard label="진행 중" value={`${stats.ongoing}건`} />
           <StatCard label="예정" value={`${stats.planning}건`} />
+          <StatCard label="완료" value={`${stats.completed}건`} />
           <StatCard
             label="총 예산 합계"
             value={formatKRW(stats.totalBudget)}
             hint={`예산 미설정 ${stats.noBudgetCount}건`}
-          />
-          <StatCard
-            label="누적 지출 · 실지출 기준"
-            value={formatKRW(stats.totalExpense)}
-            valueClassName="text-warn-text"
           />
         </div>
       )}

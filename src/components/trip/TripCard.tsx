@@ -1,7 +1,6 @@
 'use client';
 
 import { Badge } from '@/components/ui/Badge';
-import { ProgressBar } from '@/components/ui/ProgressBar';
 import { formatKRW } from '@/lib/utils';
 import type { Trip } from '@/types';
 import { MoreHorizontal } from 'lucide-react';
@@ -11,55 +10,19 @@ interface TripCardProps {
   trip: Trip;
 }
 
-// 커버 그라데이션 (여행별 다른 색)
-const coverGradients: Record<string, string> = {
-  'trip-001': 'bg-gradient-to-br from-[#4C6FFF] via-[#6B8AFF] to-[#A78BFA]',
-  'trip-002': 'bg-gradient-to-br from-[#10B981] via-[#34D399] to-[#06B6D4]',
-  'trip-003': 'bg-gradient-to-br from-[#EC4899] via-[#F472B6] to-[#F59E0B]',
-};
+// 커버 그라데이션 (여행 id 해시로 결정 — 여행별 다른 색)
+const GRADIENTS = [
+  'bg-gradient-to-br from-[#4C6FFF] via-[#6B8AFF] to-[#A78BFA]',
+  'bg-gradient-to-br from-[#10B981] via-[#34D399] to-[#06B6D4]',
+  'bg-gradient-to-br from-[#EC4899] via-[#F472B6] to-[#F59E0B]',
+  'bg-gradient-to-br from-[#F59E0B] via-[#FBBF24] to-[#F97316]',
+];
 
-const defaultGradient =
-  'bg-gradient-to-br from-[#4C6FFF] via-[#6B8AFF] to-[#A78BFA]';
-
-// Mock: 여행별 데이터
-const mockTripData: Record<
-  string,
-  {
-    usage: number;
-    expense: number;
-    members: string[];
-    warnings?: string;
-    statusLabel: string;
-    ddayLabel: string;
-    icon: string;
-  }
-> = {
-  'trip-001': {
-    usage: 65,
-    expense: 1560000,
-    members: ['지', '서', '하', '유'],
-    warnings: '쇼핑 초과 · 식비 임박',
-    statusLabel: '오늘',
-    ddayLabel: 'Day 3',
-    icon: '🗾',
-  },
-  'trip-002': {
-    usage: 0,
-    expense: 0,
-    members: ['지', '서', '유'],
-    statusLabel: '예정',
-    ddayLabel: 'D-65',
-    icon: '🌊',
-  },
-  'trip-003': {
-    usage: 94,
-    expense: 1692000,
-    members: ['지', '서', '하', '유'],
-    statusLabel: '완료',
-    ddayLabel: '완료',
-    icon: '🌴',
-  },
-};
+function gradientFor(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash + id.charCodeAt(i)) % 997;
+  return GRADIENTS[hash % GRADIENTS.length];
+}
 
 const memberColors = ['bg-brand', 'bg-ok', 'bg-warn', 'bg-member-purple'];
 
@@ -70,10 +33,9 @@ const statusBadgeVariant: Record<string, 'brand' | 'ok' | 'default'> = {
 };
 
 export function TripCard({ trip }: TripCardProps) {
-  const data = mockTripData[trip.id] || mockTripData['trip-001'];
-  const gradient = coverGradients[trip.id] || defaultGradient;
-  const usageStatus =
-    data.usage >= 100 ? 'danger' : data.usage >= 80 ? 'warn' : 'normal';
+  const gradient = gradientFor(trip.id);
+  // headcount 기반 아바타 자리표시 (목록에서는 멤버 상세를 조회하지 않음)
+  const avatarCount = Math.min(trip.headcount, 4);
 
   return (
     <div className="group relative overflow-hidden rounded-md border border-surface-line bg-surface-card shadow-sm transition-shadow hover:shadow-base">
@@ -104,8 +66,7 @@ export function TripCard({ trip }: TripCardProps) {
         <div className="mt-3">
           <h3 className="text-lg font-bold text-white">{trip.title}</h3>
           <p className="mt-0.5 text-sm text-white/80">
-            {data.icon} {trip.destination} · {getDuration(trip)} ·{' '}
-            {trip.headcount}명
+            🧳 {trip.destination} · {getDuration(trip)} · {trip.headcount}명
           </p>
         </div>
       </div>
@@ -120,19 +81,19 @@ export function TripCard({ trip }: TripCardProps) {
             {computeStatusLabel(trip)}
           </Badge>
           <div className="flex -space-x-1.5">
-            {data.members.map((m, i) => (
+            {Array.from({ length: avatarCount }).map((_, i) => (
               <div
                 key={i}
                 className={`flex h-6 w-6 items-center justify-center rounded-pill border-2 border-surface-card text-[10px] font-bold text-on-brand ${memberColors[i % memberColors.length]}`}
               >
-                {m}
+                {i + 1}
               </div>
             ))}
           </div>
         </div>
 
         {/* 기간 + 예산 */}
-        <div className="mt-3 flex items-center gap-2 text-sm text-ink-2">
+        <div className="mt-3 flex items-center gap-3 text-sm text-ink-2">
           <span>
             📅 {trip.startDate.slice(5)}~{trip.endDate.slice(5)}
           </span>
@@ -140,30 +101,6 @@ export function TripCard({ trip }: TripCardProps) {
             예산 <b className="text-ink">{formatKRW(trip.totalBudget)}</b>
           </span>
         </div>
-
-        {/* 사용률 */}
-        <div className="mt-2">
-          <div className="mb-1 flex items-center justify-between text-xs text-ink-3">
-            <span>{data.usage > 0 ? '예산 사용률' : '예산 사용률'}</span>
-            <span>
-              {data.usage}%{' '}
-              {data.expense > 0 ? (
-                <span className="text-ink-3">{formatKRW(data.expense)}</span>
-              ) : (
-                <span className="text-ink-3">출발 전</span>
-              )}
-            </span>
-          </div>
-          <ProgressBar value={data.usage} status={usageStatus} size="sm" />
-        </div>
-
-        {/* 경고 배너 */}
-        {data.warnings && (
-          <div className="mt-3 flex items-center gap-2 rounded-sm bg-danger-soft px-3 py-2 text-xs text-danger-text">
-            <span>🔴</span>
-            <span>{data.warnings}</span>
-          </div>
-        )}
       </div>
     </div>
   );

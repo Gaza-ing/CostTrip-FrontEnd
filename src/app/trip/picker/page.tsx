@@ -3,56 +3,67 @@
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { useTrips } from '@/hooks/use-trips';
+import type { Trip } from '@/types';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-// Mock 여행 데이터
-const MOCK_TRIPS = [
-  {
-    id: 'trip-001',
-    title: '오사카 우정여행',
-    destination: '간사이',
-    duration: '4박5일',
-    headcount: 4,
-    status: 'ongoing' as const,
-    dday: 'Day 3',
-  },
-  {
-    id: 'trip-002',
-    title: '제주 가족여행',
-    destination: '제주도',
-    duration: '3박4일',
-    headcount: 3,
-    status: 'planning' as const,
-    dday: 'D-45',
-  },
-];
-
-function statusBadgeVariant(status: string) {
+function statusBadgeVariant(status: Trip['status']) {
   switch (status) {
-    case 'ongoing':
+    case 'in_progress':
       return 'brand' as const;
-    case 'planning':
-      return 'default' as const;
-    case 'completed':
-      return 'default' as const;
     default:
       return 'default' as const;
   }
 }
 
+/** 여행 기간을 "N박N일"로 표기 */
+function durationLabel(trip: Trip): string {
+  const start = new Date(trip.startDate);
+  const end = new Date(trip.endDate);
+  const days =
+    Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  if (days <= 1) return '당일';
+  return `${days - 1}박${days}일`;
+}
+
+/** 상태/시작일 기준 D-day 라벨 */
+function ddayLabel(trip: Trip): string {
+  if (trip.status === 'completed') return '완료';
+  const start = new Date(trip.startDate);
+  const today = new Date();
+  start.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  const diff = Math.round(
+    (start.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  if (trip.status === 'in_progress') return '진행 중';
+  if (diff === 0) return 'D-Day';
+  if (diff > 0) return `D-${diff}`;
+  return `D+${Math.abs(diff)}`;
+}
+
 export default function TripPickerPage() {
   const router = useRouter();
+  const { data: trips = [], isLoading } = useTrips();
 
-  const ongoing = MOCK_TRIPS.filter((t) => t.status === 'ongoing');
-  const planning = MOCK_TRIPS.filter((t) => t.status === 'planning');
+  const ongoing = trips.filter((t) => t.status === 'in_progress');
+  const planning = trips.filter((t) => t.status === 'planning');
 
   function handleSelectTrip(tripId: string) {
     router.push(`/trip/${tripId}`);
   }
 
+  if (isLoading) {
+    return (
+      <div className="py-20 text-center text-sm text-ink-3">
+        여행 불러오는 중...
+      </div>
+    );
+  }
+
   // 빈 상태 (여행 0건)
-  if (MOCK_TRIPS.length === 0) {
+  if (trips.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <span className="text-5xl mb-4">✈️</span>
@@ -66,7 +77,6 @@ export default function TripPickerPage() {
           <Link href="/trip/create">
             <Button>+ 여행 만들기</Button>
           </Link>
-          <Button variant="ghost">코드로 참여</Button>
         </div>
         <Link
           href="/home"
@@ -80,7 +90,6 @@ export default function TripPickerPage() {
 
   return (
     <div className="mx-auto max-w-lg space-y-5">
-      {/* 안내 */}
       <div className="text-center">
         <h2 className="text-lg font-semibold text-ink">
           계획을 보려면 여행을 선택해 주세요
@@ -90,7 +99,6 @@ export default function TripPickerPage() {
         </p>
       </div>
 
-      {/* 진행 중 */}
       {ongoing.length > 0 && (
         <section>
           <h3 className="text-[13px] font-bold text-ink-2 mb-3">진행 중</h3>
@@ -108,11 +116,12 @@ export default function TripPickerPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-ink">{trip.title}</p>
                     <p className="text-xs text-ink-3">
-                      {trip.destination} · {trip.duration} · {trip.headcount}명
+                      {trip.destination} · {durationLabel(trip)} ·{' '}
+                      {trip.headcount}명
                     </p>
                   </div>
                   <Badge variant={statusBadgeVariant(trip.status)}>
-                    {trip.dday}
+                    {ddayLabel(trip)}
                   </Badge>
                 </div>
               </Card>
@@ -121,7 +130,6 @@ export default function TripPickerPage() {
         </section>
       )}
 
-      {/* 예정 */}
       {planning.length > 0 && (
         <section>
           <h3 className="text-[13px] font-bold text-ink-2 mb-3">예정</h3>
@@ -139,10 +147,11 @@ export default function TripPickerPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-ink">{trip.title}</p>
                     <p className="text-xs text-ink-3">
-                      {trip.destination} · {trip.duration} · {trip.headcount}명
+                      {trip.destination} · {durationLabel(trip)} ·{' '}
+                      {trip.headcount}명
                     </p>
                   </div>
-                  <Badge>{trip.dday}</Badge>
+                  <Badge>{ddayLabel(trip)}</Badge>
                 </div>
               </Card>
             ))}
@@ -150,14 +159,10 @@ export default function TripPickerPage() {
         </section>
       )}
 
-      {/* 하단 액션 */}
       <div className="flex items-center justify-center gap-4 pt-4 border-t border-surface-line">
         <Link href="/trip/create">
           <Button size="sm">+ 여행 만들기</Button>
         </Link>
-        <Button variant="ghost" size="sm">
-          코드로 참여
-        </Button>
       </div>
 
       <div className="text-center">

@@ -4,7 +4,10 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
+import { useMe } from '@/hooks/use-auth-user';
+import { useAuth } from '@/lib/auth-context';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 interface ToggleSwitchProps {
@@ -35,9 +38,20 @@ function ToggleSwitch({ checked, onChange }: ToggleSwitchProps) {
 }
 
 export default function SettingsPage() {
+  const router = useRouter();
+  const { data: me } = useMe();
+  const { signOut } = useAuth();
   const [budgetAlert, setBudgetAlert] = useState(true);
   const [memberAlert, setMemberAlert] = useState(true);
   const [settlementAlert, setSettlementAlert] = useState(false);
+
+  const displayName = me?.displayName || '사용자';
+  const email = me?.email || '';
+
+  async function handleSignOut() {
+    await signOut();
+    router.replace('/login');
+  }
 
   return (
     <div className="space-y-5">
@@ -71,14 +85,11 @@ export default function SettingsPage() {
             <Card>
               <div className="flex items-center gap-4">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand text-lg font-bold text-on-brand">
-                  지
+                  {displayName.charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-base font-bold text-ink">김지원</p>
-                  <p className="text-sm text-ink-3">
-                    beomseok.jo@snowcorp.com ·{' '}
-                    <span className="font-semibold text-brand-dark">owner</span>
-                  </p>
+                  <p className="text-base font-bold text-ink">{displayName}</p>
+                  <p className="text-sm text-ink-3 truncate">{email}</p>
                 </div>
                 <Button variant="ghost" size="sm">
                   프로필 수정
@@ -243,6 +254,7 @@ export default function SettingsPage() {
               variant="ghost"
               size="sm"
               className="text-danger-text border border-danger-soft"
+              onClick={handleSignOut}
             >
               로그아웃
             </Button>

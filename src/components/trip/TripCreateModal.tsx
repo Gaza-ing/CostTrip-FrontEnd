@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { useCreateTrip } from '@/hooks/use-trips';
+import { useMe } from '@/hooks/use-auth-user';
 import { useAppStore } from '@/stores/app-store';
 import { formatKRW } from '@/lib/utils';
 import { Search, ChevronDown } from 'lucide-react';
@@ -28,6 +29,7 @@ const MEMBER_COLORS = ['bg-brand', 'bg-ok', 'bg-warn', 'bg-member-purple'];
 export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
   const router = useRouter();
   const createTrip = useCreateTrip();
+  const { data: me } = useMe();
   const { setTripInfo, setTripDates } = useAppStore();
 
   const [form, setForm] = useState({
@@ -42,12 +44,15 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
   const [members, setMembers] = useState<MemberItem[]>([
     {
       id: 'me',
-      name: '김지원 (나)',
+      name: '나',
       email: 'owner',
       role: 'owner',
       color: MEMBER_COLORS[0],
     },
   ]);
+
+  // 로그인 사용자 이름을 소유자 멤버 표시에 반영
+  const ownerName = me?.displayName ? `${me.displayName} (나)` : '나';
 
   const [inviteEmail, setInviteEmail] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -321,12 +326,12 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
                     <div
                       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-pill text-sm font-medium text-on-brand ${member.color}`}
                     >
-                      {member.name.charAt(0)}
+                      {(member.id === 'me' ? ownerName : member.name).charAt(0)}
                     </div>
                     {/* 정보 */}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-ink truncate">
-                        {member.name}
+                        {member.id === 'me' ? ownerName : member.name}
                       </p>
                       <p className="text-xs text-ink-3 truncate">
                         {member.email}
