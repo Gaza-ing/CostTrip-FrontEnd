@@ -1,13 +1,10 @@
 import { supabase } from '@/lib/supabase';
 import { keysToCamel, keysToSnake } from './case';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-if (!API_URL) {
-  throw new Error(
-    'NEXT_PUBLIC_API_URL 이 설정되지 않았습니다. .env.local을 확인하세요.',
-  );
-}
+// 환경변수가 없어도 빌드/정적 생성이 실패하지 않도록 기본값을 둔다.
+// 실제 API 호출은 올바른 값이 설정돼야 동작한다.
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api/v1';
 
 /** API 요청 실패 시 던지는 에러. status와 서버가 준 detail을 담는다. */
 export class ApiError extends Error {

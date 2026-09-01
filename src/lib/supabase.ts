@@ -11,17 +11,24 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
+// 환경변수가 없으면 빌드/정적 생성 단계에서 모듈 로드가 실패하지 않도록
+// placeholder로 클라이언트를 만든다. 실제 인증 호출은 올바른 값이 있어야 동작한다.
+if ((!supabaseUrl || !supabaseAnonKey) && typeof window !== 'undefined') {
+  // 브라우저(런타임)에서 값이 비어있으면 개발자에게 경고
+  console.error(
     'Supabase 환경변수가 없습니다. .env.local에 ' +
       'NEXT_PUBLIC_SUPABASE_URL 과 NEXT_PUBLIC_SUPABASE_ANON_KEY 를 설정하세요.',
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
+export const supabase = createClient(
+  supabaseUrl ?? 'https://placeholder.supabase.co',
+  supabaseAnonKey ?? 'placeholder-anon-key',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
   },
-});
+);
