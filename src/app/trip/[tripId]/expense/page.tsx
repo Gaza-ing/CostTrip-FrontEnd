@@ -7,15 +7,12 @@ import { HeaderActionButton } from '@/components/layout';
 import { useHeaderAction } from '@/hooks/use-header-action';
 import { CATEGORIES } from '@/lib/constants';
 import { formatKRW, cn } from '@/lib/utils';
-import {
-  useExpenseStore,
-  useMemberStore,
-  selectExpensesByTrip,
-  selectMembersByTrip,
-  selectMemberName,
-  selectTotalSpent,
-} from '@/stores';
-import { useAppStore } from '@/stores/app-store';
+import { selectMemberName } from '@/stores';
+import { useExpenses, useDeleteExpense } from '@/hooks/use-expenses';
+import { useMembers } from '@/hooks/use-members';
+import { useBudgets } from '@/hooks/use-budgets';
+import { useTrip } from '@/hooks/use-trips';
+import { useDays } from '@/hooks/use-plan';
 import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
@@ -46,17 +43,15 @@ export default function ExpenseListPage() {
 
   const initialCategory = searchParams.get('category');
 
-  // Stores
-  const expenses = useExpenseStore((s) => s.expenses);
-  const deleteExpense = useExpenseStore((s) => s.deleteExpense);
-  const allMembers = useMemberStore((s) => s.members);
-  const members = selectMembersByTrip(allMembers, tripId);
-  const tripExpenses = selectExpensesByTrip(expenses, tripId);
-  const totalSpent = selectTotalSpent(expenses, tripId);
+  // 서버 데이터
+  const { data: tripExpenses = [] } = useExpenses(tripId);
+  const deleteExpenseMut = useDeleteExpense(tripId);
+  const { data: members = [] } = useMembers(tripId);
+  const allMembers = members;
+  const { data: budgetData } = useBudgets(tripId);
 
-  // App store (예산)
-  const storeTotalBudget = useAppStore((s) => s.totalBudget);
-  const budgetTotal = tripId === 'trip-001' ? 2400000 : storeTotalBudget;
+  const totalSpent = tripExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const budgetTotal = budgetData?.totalBudget ?? 0;
   const remaining = budgetTotal - totalSpent;
 
   // 필터 상태
@@ -69,19 +64,10 @@ export default function ExpenseListPage() {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [selectedExpense, setSelectedExpense] = useState<string | null>(null);
 
-  // Day 필터 옵션
-  const tripStartDate = useAppStore((s) => s.tripStartDate);
-  const tripEndDate = useAppStore((s) => s.tripEndDate);
-  const totalDays =
-    tripId === 'trip-001'
-      ? 5
-      : tripStartDate && tripEndDate
-        ? Math.ceil(
-            (new Date(tripEndDate).getTime() -
-              new Date(tripStartDate).getTime()) /
-              (1000 * 60 * 60 * 24),
-          ) + 1
-        : 5;
+  // Day 필터 옵션 (서버 일자)
+  const { data: trip } = useTrip(tripId);
+  const { data: days = [] } = useDays(tripId, trip?.startDate);
+  const totalDays = days.length;
 
   // 필터 + 정렬
   const filteredExpenses = useMemo(() => {
@@ -128,7 +114,7 @@ export default function ExpenseListPage() {
 
   function handleDelete(id: string) {
     if (confirm('이 지출을 삭제할까요?')) {
-      deleteExpense(id);
+      deleteExpenseMut.mutate(id);
       if (selectedExpense === id) setSelectedExpense(null);
     }
   }
@@ -228,8 +214,7 @@ export default function ExpenseListPage() {
           기간 전체
         </button>
         {Array.from({ length: totalDays }, (_, i) => {
-          const dayId =
-            tripId === 'trip-001' ? `day-00${i + 1}` : `day-new-${i}`;
+          const dayId = days[i]?.id ?? `day-${i}`;
           return (
             <button
               key={dayId}

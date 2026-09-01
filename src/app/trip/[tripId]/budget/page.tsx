@@ -5,10 +5,14 @@ import { HeaderActionButton } from '@/components/layout';
 import { useHeaderAction } from '@/hooks/use-header-action';
 import { CATEGORIES } from '@/lib/constants';
 import { formatKRW, cn } from '@/lib/utils';
-import { useAppStore } from '@/stores/app-store';
+import { useBudgets, useSaveBudgets } from '@/hooks/use-budgets';
+import { useTrip } from '@/hooks/use-trips';
+import { useMembers } from '@/hooks/use-members';
+import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import type { BudgetData } from '@/lib/api/budgets';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -22,18 +26,46 @@ const DONUT_COLORS = [
 ];
 
 export default function BudgetSetupPage() {
-  const {
-    totalBudget,
-    categoryBudgets,
-    setTotalBudget,
-    setCategoryBudgets,
-    tripHeadcount,
-    tripStartDate: startDate,
-    tripEndDate: endDate,
-  } = useAppStore();
+  const params = useParams();
+  const tripId = params.tripId as string;
+  const { data: budgetData, isLoading } = useBudgets(tripId);
 
-  const [localTotal, setLocalTotal] = useState(totalBudget);
-  const [localBudgets, setLocalBudgets] = useState({ ...categoryBudgets });
+  if (isLoading || !budgetData) {
+    return (
+      <div className="py-20 text-center text-sm text-ink-3">
+        예산 불러오는 중...
+      </div>
+    );
+  }
+
+  return <BudgetSetupForm tripId={tripId} initial={budgetData} />;
+}
+
+function BudgetSetupForm({
+  tripId,
+  initial,
+}: {
+  tripId: string;
+  initial: BudgetData;
+}) {
+  const { data: trip } = useTrip(tripId);
+  const { data: members = [] } = useMembers(tripId);
+  const saveBudgetsMut = useSaveBudgets(tripId);
+
+  const startDate = trip?.startDate ?? '';
+  const endDate = trip?.endDate ?? '';
+  const tripHeadcount = members.length || trip?.headcount || 1;
+
+  const [localTotal, setLocalTotal] = useState(initial.totalBudget);
+  const [localBudgets, setLocalBudgets] = useState<Record<string, number>>(
+    () => {
+      // 모든 카테고리 키를 0으로 초기화 후 서버값 덮어쓰기
+      const base: Record<string, number> = {};
+      for (const c of CATEGORIES)
+        base[c.id] = initial.categoryBudgets[c.id] ?? 0;
+      return base;
+    },
+  );
   const [warningThreshold, setWarningThreshold] = useState(80);
   const [overThreshold, setOverThreshold] = useState(100);
   const [showTable, setShowTable] = useState(false);
@@ -56,9 +88,13 @@ export default function BudgetSetupPage() {
   const perDay = categoryTotal > 0 ? Math.round(categoryTotal / totalDays) : 0;
 
   function handleSave() {
-    setTotalBudget(localTotal);
-    setCategoryBudgets(localBudgets);
-    alert('예산이 저장되었습니다');
+    saveBudgetsMut.mutate(
+      { totalBudget: localTotal, categoryBudgets: localBudgets },
+      {
+        onSuccess: () => alert('예산이 저장되었습니다'),
+        onError: () => alert('예산 저장에 실패했습니다'),
+      },
+    );
   }
 
   // 헤더 우측 액션: 예산 설정 전용 "예산 저장" 버튼

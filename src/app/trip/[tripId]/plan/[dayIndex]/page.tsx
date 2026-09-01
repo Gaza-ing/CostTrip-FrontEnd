@@ -9,9 +9,16 @@ import { HeaderActionButton } from '@/components/layout';
 import { useHeaderAction } from '@/hooks/use-header-action';
 import { CATEGORIES } from '@/lib/constants';
 import { formatKRW, cn } from '@/lib/utils';
-import { mockDays } from '@/lib/api';
-import { mockPlanItems } from '@/lib/api/plan-items';
 import { useAppStore } from '@/stores/app-store';
+import { useTrip } from '@/hooks/use-trips';
+import {
+  useDays,
+  usePlanItems,
+  useCreatePlanItem,
+  useUpdatePlanItem,
+  useDeletePlanItem,
+} from '@/hooks/use-plan';
+import { useMemo } from 'react';
 import {
   Plus,
   ChevronUp,
@@ -45,47 +52,47 @@ export default function DayPlanPage() {
   const tripId = params.tripId as string;
   const dayIndex = parseInt(params.dayIndex as string);
 
-  // Store에서 여행 기간 읽기
-  const { tripStartDate, tripEndDate } = useAppStore();
-  const dayCount =
-    tripStartDate && tripEndDate
-      ? Math.ceil(
-          (new Date(tripEndDate).getTime() -
-            new Date(tripStartDate).getTime()) /
-            (1000 * 60 * 60 * 24),
-        ) + 1
-      : 5;
+  // 여행 정보(기간)
+  const { data: trip } = useTrip(tripId);
+  const tripStartDate = trip?.startDate ?? '';
 
-  const days =
-    tripId === 'trip-001'
-      ? mockDays.filter((d) => d.tripId === 'trip-001')
-      : Array.from({ length: dayCount }, (_, i) => ({
-          id: `day-new-${i}`,
-          tripId,
-          dayIndex: i,
-          date: '',
-        }));
+  // 서버 일자 목록
+  const { data: days = [] } = useDays(tripId, tripStartDate || undefined);
   const currentDay = days[dayIndex];
-  const dayId = currentDay?.id || `day-new-${dayIndex}`;
+  const dayId = currentDay?.id;
+  const dayDate = currentDay?.date || undefined;
 
-  // Store에서 planItems + mock 합치기
-  const { planItems: storePlanItems, addPlanItem: storeAddPlanItem } =
-    useAppStore();
+  // 서버 일정 항목
+  const { data: serverItems = [] } = usePlanItems(tripId, dayId);
+  const createItemMut = useCreatePlanItem(tripId, dayId ?? '');
+  const updateItemMut = useUpdatePlanItem(tripId, dayId ?? '');
+  const deleteItemMut = useDeletePlanItem(tripId, dayId ?? '');
 
-  const [items, setItems] = useState<PlanItem[]>(() => {
-    if (tripId === 'trip-001') {
-      return mockPlanItems
-        .filter((p) => p.dayId === dayId)
-        .sort((a, b) => {
-          if (a.startTime && b.startTime)
-            return a.startTime.localeCompare(b.startTime);
-          if (a.startTime) return -1;
-          if (b.startTime) return 1;
-          return a.sortOrder - b.sortOrder;
-        });
-    }
-    return storePlanItems.filter((p) => p.dayId === dayId);
-  });
+  // 서버 데이터를 시간순 정렬한 파생값
+  const serverSorted = useMemo(
+    () =>
+      [...serverItems].sort((a, b) => {
+        if (a.startTime && b.startTime)
+          return a.startTime.localeCompare(b.startTime);
+        if (a.startTime) return -1;
+        if (b.startTime) return 1;
+        return a.sortOrder - b.sortOrder;
+      }),
+    [serverItems],
+  );
+
+  // dnd 로컬 순서 오버라이드(id 배열). 없으면 서버 정렬을 그대로 사용.
+  const [orderOverride, setOrderOverride] = useState<string[] | null>(null);
+  const items = useMemo(() => {
+    if (!orderOverride) return serverSorted;
+    const byId = new Map(serverSorted.map((i) => [i.id, i]));
+    const ordered = orderOverride
+      .map((id) => byId.get(id))
+      .filter((i): i is PlanItem => !!i);
+    // 오버라이드에 없는 신규 항목은 뒤에 붙임
+    const extras = serverSorted.filter((i) => !orderOverride.includes(i.id));
+    return [...ordered, ...extras];
+  }, [serverSorted, orderOverride]);
 
   const totalCost = items.reduce((sum, item) => sum + item.estimatedCost, 0);
   const placeCount = items.filter((i) => i.latitude).length;
@@ -151,52 +158,51 @@ export default function DayPlanPage() {
   }
 
   function handlePanelSave() {
+    if (!dayId) return;
     if (editingItem) {
-      // 편집: 기존 항목 업데이트
-      setItems((prev) =>
-        prev.map((item) =>
-          item.id === editingItem.id
-            ? {
-                ...item,
-                title: panelForm.title || item.title,
-                categoryId: panelForm.categoryId,
-                startTime: panelForm.startTime || item.startTime,
-                endTime: panelForm.endTime || item.endTime,
-                estimatedCost: panelForm.estimatedCost,
-              }
-            : item,
-        ),
+      updateItemMut.mutate(
+        {
+          itemId: editingItem.id,
+          patch: {
+            title: panelForm.title || editingItem.title,
+            categoryId: panelForm.categoryId,
+            startTime: panelForm.startTime || undefined,
+            endTime: panelForm.endTime || undefined,
+            estimatedCost: panelForm.estimatedCost,
+            memo: panelForm.memo || undefined,
+          },
+          dayDate,
+        },
+        { onSuccess: closePanel },
       );
     } else {
-      // 추가: 새 항목 생성
-      const newItem: PlanItem = {
-        id: `pi-new-${crypto.randomUUID()}`,
-        dayId,
-        categoryId: panelForm.categoryId,
-        title: panelForm.title || '새 일정',
-        estimatedCost: panelForm.estimatedCost,
-        startTime: panelForm.startTime || undefined,
-        endTime: panelForm.endTime || undefined,
-        sortOrder: items.length,
-      };
-      setItems((prev) => [...prev, newItem]);
-      // Store에도 저장 (새 여행용)
-      if (tripId !== 'trip-001') {
-        storeAddPlanItem(newItem);
-      }
+      createItemMut.mutate(
+        {
+          input: {
+            title: panelForm.title || '새 일정',
+            categoryId: panelForm.categoryId,
+            estimatedCost: panelForm.estimatedCost,
+            startTime: panelForm.startTime || undefined,
+            endTime: panelForm.endTime || undefined,
+            memo: panelForm.memo || undefined,
+            sortOrder: items.length,
+          },
+          dayDate,
+        },
+        { onSuccess: closePanel },
+      );
     }
-    closePanel();
   }
 
   function moveItem(index: number, direction: 'up' | 'down') {
-    const newItems = [...items];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= newItems.length) return;
+    if (targetIndex < 0 || targetIndex >= items.length) return;
+    const newItems = [...items];
     [newItems[index], newItems[targetIndex]] = [
       newItems[targetIndex],
       newItems[index],
     ];
-    setItems(newItems);
+    setOrderOverride(newItems.map((i) => i.id));
   }
 
   // dnd-kit
@@ -209,12 +215,12 @@ export default function DayPlanPage() {
     if (!over || active.id === over.id) return;
     const oldIndex = items.findIndex((i) => i.id === active.id);
     const newIndex = items.findIndex((i) => i.id === over.id);
-    setItems(arrayMove(items, oldIndex, newIndex));
+    setOrderOverride(arrayMove(items, oldIndex, newIndex).map((i) => i.id));
   }
 
   function deleteItem(id: string) {
     if (confirm('이 일정을 삭제할까요?')) {
-      setItems((prev) => prev.filter((item) => item.id !== id));
+      deleteItemMut.mutate(id);
     }
   }
 

@@ -2,6 +2,7 @@
 
 import { MobileTabBar, Sidebar, Topbar } from '@/components/layout';
 import { TripDateEditor } from '@/components/trip/TripDateEditor';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useIsDesktop } from '@/hooks/use-is-desktop';
 import { useAppStore } from '@/stores/app-store';
 import { useParams, usePathname } from 'next/navigation';
@@ -11,6 +12,14 @@ export default function TripLayout({
 }: {
   children: React.ReactNode;
 }) {
+  return (
+    <AuthGuard>
+      <TripLayoutInner>{children}</TripLayoutInner>
+    </AuthGuard>
+  );
+}
+
+function TripLayoutInner({ children }: { children: React.ReactNode }) {
   const params = useParams();
   const pathname = usePathname();
   const tripId = params.tripId as string;

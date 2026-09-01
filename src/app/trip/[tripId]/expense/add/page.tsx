@@ -3,44 +3,28 @@
 import { Card } from '@/components/ui/Card';
 import { CATEGORIES } from '@/lib/constants';
 import { formatKRW, cn } from '@/lib/utils';
-import { useExpenseStore, useMemberStore, selectMembersByTrip } from '@/stores';
+import { useMembers } from '@/hooks/use-members';
+import { useCreateExpense } from '@/hooks/use-expenses';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import type { Expense } from '@/types';
 
 export default function ExpenseAddPage() {
   const params = useParams();
   const router = useRouter();
   const tripId = params.tripId as string;
 
-  const addExpense = useExpenseStore((s) => s.addExpense);
-  const allMembers = useMemberStore((s) => s.members);
+  const { data: members = [] } = useMembers(tripId);
+  const createExpenseMut = useCreateExpense(tripId);
 
-  const members = selectMembersByTrip(allMembers, tripId);
-  // 새 여행인 경우 기본 멤버 1명(본인)
-  const effectiveMembers =
-    members.length > 0
-      ? members
-      : [
-          {
-            id: 'me',
-            tripId,
-            userId: 'user-001',
-            displayName: '나',
-            role: 'owner' as const,
-            inviteStatus: 'accepted' as const,
-          },
-        ];
-
+  const effectiveMembers = members;
   const isGroupTrip = effectiveMembers.length > 1;
 
   // 폼 상태
   const [amount, setAmount] = useState('');
   const [title, setTitle] = useState('');
   const [categoryId, setCategoryId] = useState('food');
-  const [paidByMemberId, setPaidByMemberId] = useState(
-    effectiveMembers[0]?.id || 'me',
-  );
+  const [paidByMemberId, setPaidByMemberId] = useState('');
+  const effectivePaidBy = paidByMemberId || effectiveMembers[0]?.id || '';
   const [memo, setMemo] = useState('');
   const [splitMethod, setSplitMethod] = useState<
     'equal' | 'ratio' | 'shares' | 'exact' | 'none'
@@ -66,6 +50,7 @@ export default function ExpenseAddPage() {
     const newErrors: { amount?: string; title?: string } = {};
     if (parsedAmount <= 0) newErrors.amount = '금액을 입력해주세요';
     if (!title.trim()) newErrors.title = '내용을 입력해주세요';
+    if (!effectivePaidBy) newErrors.title = '결제자가 필요합니다';
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -73,24 +58,28 @@ export default function ExpenseAddPage() {
     }
     setErrors({});
 
-    const now = new Date().toISOString();
-    const expense: Expense = {
-      id: `exp-${crypto.randomUUID()}`,
-      tripId,
-      dayId: null, // TODO: spentAt → tripTimeZone 변환으로 dayId 추정
-      categoryId,
-      amount: parsedAmount,
-      currencyCode: 'KRW',
-      description: title.trim(),
-      paidByMemberId,
-      splitMethod,
-      isSettlementTarget: splitMethod !== 'none',
-      createdAt: now,
-      updatedAt: now,
-    };
+    // 분담 참여자: none이면 결제자만, 그 외엔 전체 멤버
+    const participantIds =
+      splitMethod === 'none'
+        ? [effectivePaidBy]
+        : effectiveMembers.map((m) => m.id);
 
-    addExpense(expense);
-    router.push(`/trip/${tripId}/progress`);
+    createExpenseMut.mutate(
+      {
+        categoryId,
+        title: title.trim(),
+        amount: parsedAmount,
+        paidByMemberId: effectivePaidBy,
+        splitMethod,
+        isSettlementTarget: splitMethod !== 'none',
+        participantIds,
+        memo: memo.trim() || null,
+      },
+      {
+        onSuccess: () => router.push(`/trip/${tripId}/progress`),
+        onError: () => alert('지출 저장에 실패했습니다'),
+      },
+    );
   }
 
   function handleReceiptAdd(e: React.ChangeEvent<HTMLInputElement>) {
@@ -203,7 +192,7 @@ export default function ExpenseAddPage() {
               결제자
             </label>
             <select
-              value={paidByMemberId}
+              value={effectivePaidBy}
               onChange={(e) => setPaidByMemberId(e.target.value)}
               className="h-11 w-full rounded-sm border border-surface-line bg-surface-card px-4 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
             >
@@ -322,7 +311,7 @@ export default function ExpenseAddPage() {
                         {m.displayName.charAt(0)}
                       </div>
                       <span className="text-sm text-ink">{m.displayName}</span>
-                      {m.id === paidByMemberId && (
+                      {m.id === effectivePaidBy && (
                         <span className="rounded-pill bg-brand-soft px-1.5 py-0.5 text-[10px] text-brand font-medium">
                           결제자
                         </span>

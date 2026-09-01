@@ -3,6 +3,15 @@
  * 데이터 모델: docs/spec/foundation/data-model/spec.md
  */
 
+export interface User {
+  id: string;
+  email: string;
+  displayName: string;
+  photoUrl: string | null;
+  defaultCurrencyCode: string;
+  locale: string;
+}
+
 export interface Trip {
   id: string;
   title: string;
@@ -58,8 +67,61 @@ export interface Member {
   tripId: string;
   userId: string | null; // null = 가상 멤버
   displayName: string;
+  type: 'registered' | 'placeholder';
   role: 'owner' | 'editor' | 'viewer';
-  inviteStatus: 'pending' | 'accepted' | 'left';
+  inviteStatus: 'invited' | 'accepted' | 'declined' | 'left';
+  joinedAt: string | null;
+}
+
+export interface Invite {
+  inviteLink: string;
+  inviteCode: string;
+  expiresAt: string;
+}
+
+export interface MemberBalance {
+  memberId: string;
+  displayName: string;
+  paid: number; // 결제 총액
+  owed: number; // 부담 총액
+  net: number; // 순잔액 (양수=받을, 음수=낼)
+}
+
+export interface Transfer {
+  id: string | null;
+  fromMemberId: string;
+  toMemberId: string;
+  amount: number;
+  isSettled: boolean;
+}
+
+export interface SettlementSummary {
+  totalSettlementAmount: number;
+  perPersonAverage: number;
+  balances: MemberBalance[];
+  transfers: Transfer[];
+}
+
+export type NotificationType =
+  | 'budget_warning'
+  | 'budget_exceeded'
+  | 'category_warning'
+  | 'category_exceeded'
+  | 'pace_warning'
+  | 'settlement'
+  | 'member_expense'
+  | 'invite'
+  | 'info';
+
+export interface Notification {
+  id: string;
+  tripId: string;
+  type: NotificationType;
+  level: 'info' | 'warning' | 'critical';
+  title: string;
+  body: string;
+  isRead: boolean;
+  triggeredAt: string;
 }
 
 export interface BudgetCategory {
