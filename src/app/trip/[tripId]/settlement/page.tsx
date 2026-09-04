@@ -8,6 +8,7 @@ import { useHeaderAction } from '@/hooks/use-header-action';
 import { formatKRW, cn } from '@/lib/utils';
 import { useMembers } from '@/hooks/use-members';
 import { useSettlement, useToggleTransfer } from '@/hooks/use-settlement';
+import { toast } from '@/stores/toast-store';
 import { Check } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -60,12 +61,12 @@ export default function SettlementPage() {
       )
       .join('\n');
     navigator.clipboard.writeText(text);
-    alert('송금 내역이 복사되었습니다');
+    toast.success('송금 내역이 복사되었습니다');
   }
 
   function toggleSettled(transferId: string | null) {
     if (!transferId) {
-      alert('정산안을 먼저 생성해야 송금 완료를 체크할 수 있어요.');
+      toast.info('정산안을 먼저 생성해야 송금 완료를 체크할 수 있어요.');
       return;
     }
     toggleTransferMut.mutate(transferId);

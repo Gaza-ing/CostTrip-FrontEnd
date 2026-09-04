@@ -15,12 +15,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'
 
+      # Windows 개발 환경에서 생성된 lock 파일은 크로스 플랫폼 optional
+      # 의존성이 누락돼 npm ci가 실패한다. lock을 지우고 새로 설치한다.
       - name: Install dependencies
         run: |
           rm -f package-lock.json
-          npm install
+          npm install --no-audit --no-fund --legacy-peer-deps
 
       - name: Lint
         run: npm run lint
