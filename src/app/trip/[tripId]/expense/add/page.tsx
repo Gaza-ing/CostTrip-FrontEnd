@@ -5,6 +5,7 @@ import { CATEGORIES } from '@/lib/constants';
 import { formatKRW, cn } from '@/lib/utils';
 import { useMembers } from '@/hooks/use-members';
 import { useCreateExpense } from '@/hooks/use-expenses';
+import { toast } from '@/stores/toast-store';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 
@@ -77,7 +78,7 @@ export default function ExpenseAddPage() {
       },
       {
         onSuccess: () => router.push(`/trip/${tripId}/progress`),
-        onError: () => alert('지출 저장에 실패했습니다'),
+        onError: () => toast.error('지출 저장에 실패했습니다'),
       },
     );
   }
@@ -90,11 +91,11 @@ export default function ExpenseAddPage() {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (!allowed.includes(file.type) && !file.name.endsWith('.heic')) {
-        alert('jpeg / png / heic만 첨부할 수 있습니다');
+        toast.error('jpeg / png / heic만 첨부할 수 있습니다');
         continue;
       }
       if (file.size > 10 * 1024 * 1024) {
-        alert('파일 크기는 10MB 이하만 가능합니다');
+        toast.error('파일 크기는 10MB 이하만 가능합니다');
         continue;
       }
       newFiles.push(file);

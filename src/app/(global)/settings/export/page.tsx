@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { formatKRW } from '@/lib/utils';
 import { useTrips } from '@/hooks/use-trips';
+import { toast } from '@/stores/toast-store';
 import type { Trip } from '@/types';
 import { useState } from 'react';
 
@@ -41,7 +42,7 @@ export default function DataExportPage() {
 
   function handleExport() {
     const selected = allTrips.filter((t) => isChecked(t.id));
-    alert(
+    toast.info(
       `${selected.length}개 여행을 ${format.toUpperCase()} 형식으로 내보냅니다.`,
     );
   }

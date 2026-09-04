@@ -170,3 +170,21 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-surface-line-strong);
 }
+
+/* ============================================
+   Toast 진입 애니메이션
+   ============================================ */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toast-enter {
+  animation: toast-in 0.2s ease-out;
+}
