@@ -6,6 +6,7 @@ import { Modal } from '@/components/ui/Modal';
 import { useCreateTrip } from '@/hooks/use-trips';
 import { useMe } from '@/hooks/use-auth-user';
 import { useAppStore } from '@/stores/app-store';
+import { toast } from '@/stores/toast-store';
 import { formatKRW } from '@/lib/utils';
 import { Search, ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -116,8 +117,10 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
           });
           setTripDates(form.startDate, form.endDate);
           onClose();
+          toast.success('여행이 생성되었어요');
           router.push(`/trip/${trip.id}`);
         },
+        onError: () => toast.error('여행 생성에 실패했어요'),
       },
     );
   }

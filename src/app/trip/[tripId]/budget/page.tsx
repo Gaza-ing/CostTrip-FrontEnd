@@ -8,6 +8,7 @@ import { formatKRW, cn } from '@/lib/utils';
 import { useBudgets, useSaveBudgets } from '@/hooks/use-budgets';
 import { useTrip } from '@/hooks/use-trips';
 import { useMembers } from '@/hooks/use-members';
+import { toast } from '@/stores/toast-store';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { Doughnut } from 'react-chartjs-2';
@@ -54,7 +55,10 @@ function BudgetSetupForm({
 
   const startDate = trip?.startDate ?? '';
   const endDate = trip?.endDate ?? '';
-  const tripHeadcount = members.length || trip?.headcount || 1;
+  // 1인당 예산은 '계획 인원(trip.headcount)' 기준.
+  // 아직 초대되지 않은 동행자도 예산 분담 대상이므로 계획 인원을 우선한다.
+  // 단, 실제 등록 멤버가 더 많으면 그 수를 쓴다.
+  const tripHeadcount = Math.max(trip?.headcount ?? 1, members.length, 1);
 
   const [localTotal, setLocalTotal] = useState(initial.totalBudget);
   const [localBudgets, setLocalBudgets] = useState<Record<string, number>>(
@@ -91,8 +95,8 @@ function BudgetSetupForm({
     saveBudgetsMut.mutate(
       { totalBudget: localTotal, categoryBudgets: localBudgets },
       {
-        onSuccess: () => alert('예산이 저장되었습니다'),
-        onError: () => alert('예산 저장에 실패했습니다'),
+        onSuccess: () => toast.success('예산이 저장되었습니다'),
+        onError: () => toast.error('예산 저장에 실패했습니다'),
       },
     );
   }

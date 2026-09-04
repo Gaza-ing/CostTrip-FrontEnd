@@ -14,6 +14,7 @@ import {
   useRemoveMember,
   useCreateInvite,
 } from '@/hooks/use-members';
+import { toast } from '@/stores/toast-store';
 import { Plus } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
@@ -73,13 +74,13 @@ export default function MembersPage() {
   function handleCopyCode() {
     if (!invite) return;
     navigator.clipboard.writeText(invite.inviteCode.replace(/\s/g, ''));
-    alert('초대 코드가 복사되었습니다');
+    toast.success('초대 코드가 복사되었습니다');
   }
 
   function handleCopyLink() {
     if (!inviteLink) return;
     navigator.clipboard.writeText(inviteLink);
-    alert('초대 링크가 복사되었습니다');
+    toast.success('초대 링크가 복사되었습니다');
   }
 
   function handleRoleChange(memberId: string, newRole: 'editor' | 'viewer') {
