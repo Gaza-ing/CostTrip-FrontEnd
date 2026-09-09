@@ -117,62 +117,6 @@ export default function MembersPage() {
     );
   }
 
-  // 빈 상태
-  if (members.length <= 1 && pendingInvites === 0) {
-    return (
-      <div className="space-y-5">
-        <Card className="bg-brand-tint border-none">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="text-2xl">👥</span>
-            <div>
-              <h3 className="text-sm font-bold text-ink">
-                동행 멤버를 초대해 보세요
-              </h3>
-              <p className="text-xs text-ink-3 mt-0.5">
-                아래 코드를 공유하거나 초대 링크를 복사하세요.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-3xl font-extrabold tracking-[6px] text-brand-dark">
-              {inviteCode}
-            </span>
-            <Badge variant="brand">유효 7일</Badge>
-          </div>
-          {invite ? (
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                variant="ghost"
-                fullWidth
-                size="sm"
-                onClick={handleCopyCode}
-              >
-                📋 코드 복사
-              </Button>
-              <Button fullWidth size="sm" onClick={handleCopyLink}>
-                🔗 링크 복사
-              </Button>
-            </div>
-          ) : (
-            <Button
-              fullWidth
-              size="sm"
-              disabled={createInviteMut.isPending}
-              onClick={() =>
-                createInviteMut.mutate(
-                  { defaultRole: 'editor' },
-                  { onSuccess: (data) => setInvite(data) },
-                )
-              }
-            >
-              {createInviteMut.isPending ? '생성 중...' : '초대 코드 생성'}
-            </Button>
-          )}
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-5">
       {/* 상단 지표 */}
@@ -368,20 +312,40 @@ export default function MembersPage() {
                 {inviteCode}
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            {invite ? (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="ghost"
+                    fullWidth
+                    size="sm"
+                    onClick={handleCopyCode}
+                  >
+                    📋 코드 복사
+                  </Button>
+                  <Button fullWidth size="sm" onClick={handleCopyLink}>
+                    🔗 링크 복사
+                  </Button>
+                </div>
+                <p className="mt-3 text-center text-xs text-ink-3">
+                  {inviteLink}
+                </p>
+              </>
+            ) : (
               <Button
-                variant="ghost"
                 fullWidth
                 size="sm"
-                onClick={handleCopyCode}
+                disabled={createInviteMut.isPending}
+                onClick={() =>
+                  createInviteMut.mutate(
+                    { defaultRole: 'editor' },
+                    { onSuccess: (data) => setInvite(data) },
+                  )
+                }
               >
-                📋 코드 복사
+                {createInviteMut.isPending ? '생성 중...' : '초대 코드 생성'}
               </Button>
-              <Button fullWidth size="sm" onClick={handleCopyLink}>
-                🔗 링크 복사
-              </Button>
-            </div>
-            <p className="mt-3 text-center text-xs text-ink-3">{inviteLink}</p>
+            )}
           </Card>
 
           <Card>
