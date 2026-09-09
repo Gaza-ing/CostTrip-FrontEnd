@@ -13,11 +13,13 @@ import {
   PanelLeftClose,
   Calendar,
   DollarSign,
+  LogOut,
 } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAppStore } from '@/stores/app-store';
 import { useMe } from '@/hooks/use-auth-user';
+import { useAuth } from '@/lib/auth-context';
 import { useRef, useCallback } from 'react';
 import type { ElementType } from 'react';
 
@@ -71,6 +73,13 @@ export function Sidebar({ tripId, tripTitle }: SidebarProps) {
   const { sidebarOpen, sidebarWidth, toggleSidebar, setSidebarWidth } =
     useAppStore();
   const { data: me } = useMe();
+  const { signOut } = useAuth();
+  const router = useRouter();
+
+  async function handleSignOut() {
+    await signOut();
+    router.replace('/login');
+  }
   const tripDestination = useAppStore((s) => s.tripDestination);
   const tripHeadcount = useAppStore((s) => s.tripHeadcount);
   const tripStartDate = useAppStore((s) => s.tripStartDate);
@@ -262,18 +271,26 @@ export function Sidebar({ tripId, tripTitle }: SidebarProps) {
         )}
       </nav>
 
-      {/* 하단: 사용자 정보 */}
+      {/* 하단: 사용자 정보 + 로그아웃 */}
       <div className="border-t border-surface-line p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-pill bg-brand text-sm font-medium text-on-brand">
             {(me?.displayName || '?').charAt(0)}
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-ink truncate">
               {me?.displayName || '사용자'}
             </p>
             <p className="text-xs text-ink-3 truncate">{me?.email || ''}</p>
           </div>
+          <button
+            onClick={handleSignOut}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm text-ink-3 transition-colors hover:bg-surface-bg-alt hover:text-danger-text"
+            aria-label="로그아웃"
+            title="로그아웃"
+          >
+            <LogOut size={16} />
+          </button>
         </div>
       </div>
 
