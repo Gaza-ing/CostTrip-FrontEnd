@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/Button';
 import { TripCard } from '@/components/trip/TripCard';
+import { JoinByCode } from '@/components/trip/JoinByCode';
 import { useTrips } from '@/hooks/use-trips';
 import { formatKRW } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
@@ -64,14 +65,24 @@ export default function HomePage() {
   // 빈 상태
   if (!trips || trips.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <p className="text-lg font-medium text-ink">첫 여행을 만들어 보세요</p>
-        <p className="mt-1 text-sm text-ink-3">
-          여행 계획과 예산을 한 곳에서 관리할 수 있어요
-        </p>
-        <p className="mt-3 text-sm text-ink-3">
-          상단의 &quot;여행 생성&quot; 버튼을 눌러주세요
-        </p>
+      <div className="mx-auto max-w-md py-16">
+        <div className="flex flex-col items-center text-center">
+          <p className="text-lg font-medium text-ink">
+            첫 여행을 만들어 보세요
+          </p>
+          <p className="mt-1 text-sm text-ink-3">
+            여행 계획과 예산을 한 곳에서 관리할 수 있어요
+          </p>
+          <p className="mt-3 text-sm text-ink-3">
+            상단의 &quot;여행 생성&quot; 버튼을 눌러주세요
+          </p>
+        </div>
+        <div className="my-6 flex items-center gap-3">
+          <div className="h-px flex-1 bg-surface-line" />
+          <span className="text-xs text-ink-3">또는</span>
+          <div className="h-px flex-1 bg-surface-line" />
+        </div>
+        <JoinByCode />
       </div>
     );
   }
@@ -91,6 +102,9 @@ export default function HomePage() {
           />
         </div>
       )}
+
+      {/* 초대 코드로 참여 */}
+      <JoinByCode />
 
       {/* 필터 + 여행 개수 */}
       <div className="flex items-center justify-between">
