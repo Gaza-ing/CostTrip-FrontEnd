@@ -5,6 +5,8 @@ import { TripDateEditor } from '@/components/trip/TripDateEditor';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useIsDesktop } from '@/hooks/use-is-desktop';
 import { useAppStore } from '@/stores/app-store';
+import { useTrip, useUpdateTrip } from '@/hooks/use-trips';
+import { useMembers } from '@/hooks/use-members';
 import { useParams, usePathname } from 'next/navigation';
 
 export default function TripLayout({
@@ -23,18 +25,23 @@ function TripLayoutInner({ children }: { children: React.ReactNode }) {
   const params = useParams();
   const pathname = usePathname();
   const tripId = params.tripId as string;
-  const {
-    sidebarOpen,
-    sidebarWidth,
-    editMode,
-    tripStartDate,
-    tripEndDate,
-    setTripDates,
-    tripTitle,
-    tripHeadcount,
-    headerAction,
-  } = useAppStore();
+  const { sidebarOpen, sidebarWidth, editMode, headerAction } = useAppStore();
   const isDesktop = useIsDesktop();
+
+  // 실제 여행/멤버 데이터
+  const { data: trip } = useTrip(tripId);
+  const { data: members = [] } = useMembers(tripId);
+  const updateTripMut = useUpdateTrip(tripId);
+
+  const tripTitle = trip?.title ?? '여행';
+  const tripStartDate = trip?.startDate ?? '';
+  const tripEndDate = trip?.endDate ?? '';
+  // 계획 인원과 실제 멤버 중 큰 값 (초대 전 동행자 포함)
+  const tripHeadcount = Math.max(trip?.headcount ?? 1, members.length, 1);
+
+  function setTripDates(startDate: string, endDate: string) {
+    updateTripMut.mutate({ startDate, endDate });
+  }
 
   const basePath = `/trip/${tripId}`;
   const subPath = pathname.replace(basePath, '') || '';

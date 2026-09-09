@@ -55,6 +55,10 @@ export default function DayPlanPage() {
   // 여행 정보(기간)
   const { data: trip } = useTrip(tripId);
   const tripStartDate = trip?.startDate ?? '';
+  // 편집 패널 헤더 subtitle (실제 여행 정보)
+  const editSubtitle = trip
+    ? `${trip.title} · ${trip.startDate.replace(/-/g, '.')}~${trip.endDate.replace(/-/g, '.')}`
+    : '';
 
   // 서버 일자 목록
   const { data: days = [] } = useDays(tripId, tripStartDate || undefined);
@@ -129,7 +133,7 @@ export default function DayPlanPage() {
     setEditMode({
       active: true,
       title: `일정 편집 · Day ${dayIndex + 1}`,
-      subtitle: '오사카 우정여행 · 2026.07.10~07.14',
+      subtitle: editSubtitle,
     });
   }
 
@@ -148,7 +152,7 @@ export default function DayPlanPage() {
     setEditMode({
       active: true,
       title: `일정 편집 · Day ${dayIndex + 1}`,
-      subtitle: '오사카 우정여행 · 2026.07.10~07.14',
+      subtitle: editSubtitle,
     });
   }
 
