@@ -102,7 +102,7 @@ export default function ComponentsDevPage() {
           <div className="flex flex-wrap gap-2">
             {CATEGORIES.map((cat) => (
               <Badge key={cat.id} variant="category" category={cat.id}>
-                {cat.icon} {cat.label}
+                {cat.label}
               </Badge>
             ))}
           </div>

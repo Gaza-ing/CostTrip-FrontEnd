@@ -1,7 +1,9 @@
 'use client';
 
+import { X, Plus, CircleDollarSign } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { CATEGORIES } from '@/lib/constants';
+import { CategoryIcon } from '@/lib/category-icons';
 import { formatKRW, cn } from '@/lib/utils';
 import { useMembers } from '@/hooks/use-members';
 import { useCreateExpense } from '@/hooks/use-expenses';
@@ -132,8 +134,9 @@ export default function ExpenseAddPage() {
         {errors.amount && (
           <p className="mt-1.5 text-xs text-danger-text">{errors.amount}</p>
         )}
-        <span className="mt-2 inline-block rounded-pill border border-dashed border-surface-line-strong px-3 py-1 text-[11px] text-ink-3">
-          ＄ 다중통화 [TODO]
+        <span className="mt-2 inline-flex items-center gap-1 rounded-pill border border-dashed border-surface-line-strong px-3 py-1 text-[11px] text-ink-3">
+          <CircleDollarSign size={13} />
+          다중통화 [TODO]
         </span>
       </Card>
 
@@ -176,7 +179,7 @@ export default function ExpenseAddPage() {
                       : 'border-surface-line bg-surface-card text-ink hover:bg-surface-bg-alt',
                   )}
                 >
-                  <span>{cat.icon}</span>
+                  <CategoryIcon id={cat.id} size={16} />
                   <span>{cat.label}</span>
                 </button>
               ))}
@@ -241,15 +244,15 @@ export default function ExpenseAddPage() {
                 onClick={() =>
                   setReceipts((prev) => prev.filter((_, idx) => idx !== i))
                 }
-                className="absolute top-0.5 right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-[10px] text-white"
+                className="absolute top-0.5 right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white"
               >
-                ✕
+                <X size={12} />
               </button>
             </div>
           ))}
           {receipts.length < 5 && (
             <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-sm border-2 border-dashed border-surface-line-strong text-ink-3 hover:border-brand hover:text-brand transition-colors">
-              <span className="text-xl">+</span>
+              <Plus size={20} />
               <span className="text-[10px]">사진</span>
               <input
                 type="file"

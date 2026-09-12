@@ -8,6 +8,7 @@ import { SlidePanel } from '@/components/ui/SlidePanel';
 import { HeaderActionButton } from '@/components/layout';
 import { useHeaderAction } from '@/hooks/use-header-action';
 import { CATEGORIES } from '@/lib/constants';
+import { CategoryIcon } from '@/lib/category-icons';
 import { formatKRW, cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/app-store';
 import { useTrip } from '@/hooks/use-trips';
@@ -26,6 +27,8 @@ import {
   Trash2,
   MapPin,
   GripVertical,
+  AlertCircle,
+  CircleDollarSign,
 } from 'lucide-react';
 import {
   DndContext,
@@ -336,7 +339,7 @@ export default function DayPlanPage() {
           {/* 예산 경고 (mock) */}
           {items.some((i) => i.categoryId === 'shop') && (
             <div className="flex items-start gap-2 rounded-sm bg-danger-soft px-4 py-3 text-sm text-danger-text">
-              <span>🔴</span>
+              <AlertCircle size={16} className="mt-0.5 shrink-0" />
               <span>
                 쇼핑 예산이 이미 초과 상태(113%)예요. 신사이바시 일정의 지출에
                 주의하세요.
@@ -517,13 +520,14 @@ export default function DayPlanPage() {
                     setPanelForm((f) => ({ ...f, categoryId: cat.id }))
                   }
                   className={cn(
-                    'rounded-pill border px-3 py-1.5 text-xs font-medium transition-colors',
+                    'inline-flex items-center gap-1.5 rounded-pill border px-3 py-1.5 text-xs font-medium transition-colors',
                     panelForm.categoryId === cat.id
                       ? 'border-brand bg-brand text-on-brand'
                       : 'border-surface-line text-ink-2 hover:bg-surface-bg-alt',
                   )}
                 >
-                  {cat.icon} {cat.label}
+                  <CategoryIcon id={cat.id} size={13} />
+                  {cat.label}
                 </button>
               ))}
             </div>
@@ -543,8 +547,9 @@ export default function DayPlanPage() {
                 }))
               }
             />
-            <span className="mt-1 inline-block rounded-xs border border-dashed border-surface-line-strong px-2 py-0.5 text-xs text-ink-3">
-              ＄ 다중통화 [TODO]
+            <span className="mt-1 inline-flex items-center gap-1 rounded-xs border border-dashed border-surface-line-strong px-2 py-0.5 text-xs text-ink-3">
+              <CircleDollarSign size={12} />
+              다중통화 [TODO]
             </span>
           </div>
 
@@ -611,8 +616,6 @@ function SortableTimelineItem({
     zIndex: isDragging ? 50 : undefined,
   };
 
-  const cat = CATEGORIES.find((c) => c.id === item.categoryId);
-
   return (
     <div
       ref={setNodeRef}
@@ -631,8 +634,8 @@ function SortableTimelineItem({
       </div>
 
       {/* 카테고리 아이콘 */}
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-surface-bg-alt text-lg">
-        {cat?.icon}
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-surface-bg-alt text-ink-2">
+        <CategoryIcon id={item.categoryId} size={18} />
       </span>
 
       {/* 내용 */}
@@ -647,7 +650,7 @@ function SortableTimelineItem({
             }
             className="mr-1"
           >
-            {cat?.label}
+            {CATEGORIES.find((c) => c.id === item.categoryId)?.label}
           </Badge>
           · {item.latitude ? '오사카' : '장소 미정'}
           {item.endTime &&

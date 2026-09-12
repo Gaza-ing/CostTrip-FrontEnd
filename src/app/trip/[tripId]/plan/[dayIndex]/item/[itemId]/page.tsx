@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { CATEGORIES } from '@/lib/constants';
+import { CategoryIcon } from '@/lib/category-icons';
 import { cn } from '@/lib/utils';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -82,7 +83,7 @@ export default function PlanItemEditPage() {
                         : 'border-surface-line text-ink-2 hover:bg-surface-bg-alt',
                     )}
                   >
-                    <span>{cat.icon}</span>
+                    <CategoryIcon id={cat.id} size={15} />
                     {cat.label}
                   </button>
                 ))}

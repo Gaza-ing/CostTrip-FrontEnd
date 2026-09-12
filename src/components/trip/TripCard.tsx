@@ -7,7 +7,7 @@ import { formatKRW } from '@/lib/utils';
 import { useDeleteTrip } from '@/hooks/use-trips';
 import { toast } from '@/stores/toast-store';
 import type { Trip } from '@/types';
-import { Trash2 } from 'lucide-react';
+import { Trash2, MapPin, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -87,8 +87,9 @@ export function TripCard({ trip }: TripCardProps) {
         {/* 여행 정보 */}
         <div className="mt-3">
           <h3 className="text-lg font-bold text-white">{trip.title}</h3>
-          <p className="mt-0.5 text-sm text-white/80">
-            🧳 {trip.destination} · {getDuration(trip)} · {trip.headcount}명
+          <p className="mt-0.5 flex items-center gap-1 text-sm text-white/80">
+            <MapPin size={13} className="shrink-0" />
+            {trip.destination} · {getDuration(trip)} · {trip.headcount}명
           </p>
         </div>
       </div>
@@ -116,8 +117,9 @@ export function TripCard({ trip }: TripCardProps) {
 
         {/* 기간 + 예산 */}
         <div className="mt-3 flex items-center gap-3 text-sm text-ink-2">
-          <span>
-            📅 {trip.startDate.slice(5)}~{trip.endDate.slice(5)}
+          <span className="flex items-center gap-1">
+            <Calendar size={13} className="shrink-0" />
+            {trip.startDate.slice(5)}~{trip.endDate.slice(5)}
           </span>
           <span>
             예산 <b className="text-ink">{formatKRW(trip.totalBudget)}</b>

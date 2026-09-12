@@ -15,7 +15,7 @@ import {
   useCreateInvite,
 } from '@/hooks/use-members';
 import { toast } from '@/stores/toast-store';
-import { Plus } from 'lucide-react';
+import { Plus, Copy, Link2 } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import type { Invite } from '@/types';
@@ -321,10 +321,12 @@ export default function MembersPage() {
                     size="sm"
                     onClick={handleCopyCode}
                   >
-                    📋 코드 복사
+                    <Copy size={15} />
+                    코드 복사
                   </Button>
                   <Button fullWidth size="sm" onClick={handleCopyLink}>
-                    🔗 링크 복사
+                    <Link2 size={15} />
+                    링크 복사
                   </Button>
                 </div>
                 <p className="mt-3 text-center text-xs text-ink-3">

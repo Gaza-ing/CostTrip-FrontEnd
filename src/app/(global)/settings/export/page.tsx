@@ -1,5 +1,15 @@
 'use client';
 
+import {
+  HardDriveDownload,
+  Check,
+  MapPin,
+  FileSpreadsheet,
+  FileText,
+  Receipt,
+  Download,
+  CircleDollarSign,
+} from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -53,7 +63,7 @@ export default function DataExportPage() {
     <div className="space-y-5">
       {/* 안내 배너 */}
       <div className="flex items-center gap-3 rounded-sm bg-brand-tint px-4 py-3">
-        <span className="text-base">💾</span>
+        <HardDriveDownload size={18} className="shrink-0 text-brand" />
         <p className="text-sm text-ink">
           내 여행 데이터를 <strong>CSV·PDF</strong>로 내려받아 보관할 수 있어요.
           내보낸 파일에는 지출·정산·멤버 정보가 포함됩니다.
@@ -76,8 +86,8 @@ export default function DataExportPage() {
             <>
               {/* 전체 선택 */}
               <label className="flex items-center gap-3 py-3 cursor-pointer border-b border-surface-line">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-soft text-brand-dark text-sm font-bold">
-                  ✓
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-soft text-brand-dark">
+                  <Check size={18} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-ink">전체 여행</p>
@@ -99,8 +109,8 @@ export default function DataExportPage() {
                   key={trip.id}
                   className="flex items-center gap-3 py-3 cursor-pointer border-b border-surface-line last:border-b-0"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-bg-alt text-base">
-                    🧳
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-bg-alt text-ink-2">
+                    <MapPin size={18} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-ink">{trip.title}</p>
@@ -127,8 +137,8 @@ export default function DataExportPage() {
         <h2 className="text-[13px] font-bold text-ink-2 mb-3">파일 형식</h2>
         <Card>
           <label className="flex items-center gap-3 py-3 cursor-pointer border-b border-surface-line">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cat-etc-soft text-base">
-              📄
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cat-etc-soft text-cat-etc">
+              <FileSpreadsheet size={18} />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-ink">CSV</p>
@@ -143,8 +153,8 @@ export default function DataExportPage() {
             />
           </label>
           <label className="flex items-center gap-3 py-3 cursor-pointer border-b border-surface-line">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cat-etc-soft text-base">
-              🧾
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cat-etc-soft text-cat-etc">
+              <FileText size={18} />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-ink">PDF</p>
@@ -159,8 +169,8 @@ export default function DataExportPage() {
             />
           </label>
           <label className="flex items-center gap-3 py-3 cursor-pointer opacity-50">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cat-etc-soft text-base">
-              🧾
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cat-etc-soft text-cat-etc">
+              <Receipt size={18} />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-ink">
@@ -176,8 +186,9 @@ export default function DataExportPage() {
             <input type="checkbox" disabled className="h-5 w-5" />
           </label>
           <div className="pt-2">
-            <span className="rounded-pill border border-dashed border-surface-line-strong px-3 py-1.5 text-[11px] text-ink-3">
-              ＄ 다중통화 내보내기 [TODO]
+            <span className="inline-flex items-center gap-1 rounded-pill border border-dashed border-surface-line-strong px-3 py-1.5 text-[11px] text-ink-3">
+              <CircleDollarSign size={13} />
+              다중통화 내보내기 [TODO]
             </span>
           </div>
         </Card>
@@ -190,7 +201,8 @@ export default function DataExportPage() {
         onClick={handleExport}
         disabled={selectedCount === 0}
       >
-        📥 선택 항목 내보내기
+        <Download size={18} />
+        선택 항목 내보내기
       </Button>
       <p className="text-center text-xs text-ink-3">
         내보내기 기록은 30일간 보관됩니다.

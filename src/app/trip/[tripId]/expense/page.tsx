@@ -1,5 +1,6 @@
 'use client';
 
+import { Receipt, MousePointerClick, CircleDollarSign } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -123,7 +124,9 @@ export default function ExpenseListPage() {
   if (tripExpenses.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <span className="text-5xl mb-4">🧾</span>
+        <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-brand-tint text-brand">
+          <Receipt size={24} />
+        </span>
         <h2 className="text-lg font-semibold text-ink">
           아직 기록된 지출이 없어요
         </h2>
@@ -430,7 +433,7 @@ export default function ExpenseListPage() {
 
               {/* 영수증 영역 (placeholder) */}
               <div className="h-32 rounded-sm border border-dashed border-surface-line-strong bg-surface-bg-alt flex items-center justify-center mb-5">
-                <span className="text-2xl text-ink-3">🧾</span>
+                <Receipt size={26} className="text-ink-3" />
               </div>
 
               {/* 지출 정보 */}
@@ -512,8 +515,9 @@ export default function ExpenseListPage() {
                     )}
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-ink-3">통화</span>
-                    <span className="inline-block rounded-pill border border-dashed border-surface-line-strong px-2 py-0.5 text-[11px] text-ink-3">
-                      ＄ 다중통화 [TODO]
+                    <span className="inline-flex items-center gap-1 rounded-pill border border-dashed border-surface-line-strong px-2 py-0.5 text-[11px] text-ink-3">
+                      <CircleDollarSign size={12} />
+                      다중통화 [TODO]
                     </span>
                   </div>
                 </div>
@@ -558,7 +562,9 @@ export default function ExpenseListPage() {
             </Card>
           ) : (
             <Card className="flex flex-col items-center justify-center py-16 text-center">
-              <span className="text-3xl mb-3">👈</span>
+              <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface-bg-alt text-ink-3">
+                <MousePointerClick size={22} />
+              </span>
               <p className="text-sm text-ink-3">
                 지출을 선택하면 상세 정보를 볼 수 있어요
               </p>

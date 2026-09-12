@@ -1,5 +1,6 @@
 'use client';
 
+import { Lightbulb, CircleDollarSign } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { HeaderActionButton } from '@/components/layout';
 import { useHeaderAction } from '@/hooks/use-header-action';
@@ -175,8 +176,9 @@ function BudgetSetupForm({
           <Card>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-bold text-ink">전체 예산</h2>
-              <span className="rounded-pill border border-dashed border-surface-line-strong px-3 py-1 text-xs text-ink-3">
-                ＄ 다중통화 [TODO]
+              <span className="inline-flex items-center gap-1 rounded-pill border border-dashed border-surface-line-strong px-3 py-1 text-xs text-ink-3">
+                <CircleDollarSign size={13} />
+                다중통화 [TODO]
               </span>
             </div>
             <div className="grid grid-cols-[1fr_140px] gap-4">
@@ -252,7 +254,7 @@ function BudgetSetupForm({
                         style={{ backgroundColor: DONUT_COLORS[i] }}
                       />
                       <span className="text-sm font-medium text-ink">
-                        {cat.icon} {cat.label}
+                        {cat.label}
                       </span>
                     </div>
 
@@ -355,7 +357,7 @@ function BudgetSetupForm({
               </span>
             </div>
             <div className="mt-5 flex items-start gap-3 rounded-sm bg-brand-tint px-4 py-3">
-              <span className="shrink-0 text-base">💡</span>
+              <Lightbulb size={16} className="mt-0.5 shrink-0 text-brand" />
               <p className="text-sm text-ink-2 leading-relaxed">
                 임박 <b className="text-ink">{warningThreshold}%</b> · 초과{' '}
                 <b className="text-ink">{overThreshold}%</b> 기준이
@@ -471,7 +473,7 @@ function BudgetSetupForm({
 
             {/* 1인당/하루 안내 */}
             <div className="mt-6 flex items-start gap-3 rounded-sm bg-brand-tint px-4 py-3">
-              <span className="shrink-0 text-base">💡</span>
+              <Lightbulb size={16} className="mt-0.5 shrink-0 text-brand" />
               <p className="text-sm text-ink-2 leading-relaxed">
                 총 {totalDays - 1}박{totalDays}일 기준{' '}
                 <b className="text-ink">1인당 {formatKRW(perPerson)}</b>, 하루

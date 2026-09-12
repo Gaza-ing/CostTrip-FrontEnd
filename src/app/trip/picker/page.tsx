@@ -1,5 +1,6 @@
 'use client';
 
+import { Plane } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -66,7 +67,9 @@ export default function TripPickerPage() {
   if (trips.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <span className="text-5xl mb-4">✈️</span>
+        <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-brand-tint text-brand">
+          <Plane size={24} />
+        </span>
         <h2 className="text-lg font-semibold text-ink">
           첫 여행을 만들어 보세요
         </h2>

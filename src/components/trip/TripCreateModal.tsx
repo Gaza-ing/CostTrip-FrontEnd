@@ -8,7 +8,7 @@ import { useMe } from '@/hooks/use-auth-user';
 import { useAppStore } from '@/stores/app-store';
 import { toast } from '@/stores/toast-store';
 import { formatKRW } from '@/lib/utils';
-import { Search, ChevronDown } from 'lucide-react';
+import { Search, ChevronDown, Lightbulb, MapPin } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
@@ -156,17 +156,20 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5">
           <div className="space-y-5">
             {/* 예산 추천 배너 */}
-            <div className="rounded-sm bg-brand-tint p-4">
-              <p className="text-sm text-ink">
-                💡 일정 일수에 맞춰 카테고리별 예산을 자동 추천해 드려요.{' '}
-                <span className="inline-flex items-center rounded-pill bg-surface-bg-alt px-2 py-0.5 text-xs text-ink-3">
-                  예정
-                </span>
-              </p>
-              <p className="mt-1 text-xs text-ink-3">
-                추천 실행은 아직 제공하지 않아요. 누르면 예산 설정 화면으로만
-                이동해요.
-              </p>
+            <div className="flex gap-2.5 rounded-sm bg-brand-tint p-4">
+              <Lightbulb size={16} className="mt-0.5 shrink-0 text-brand" />
+              <div>
+                <p className="text-sm text-ink">
+                  일정 일수에 맞춰 카테고리별 예산을 자동 추천해 드려요.{' '}
+                  <span className="inline-flex items-center rounded-pill bg-surface-bg-alt px-2 py-0.5 text-xs text-ink-3">
+                    예정
+                  </span>
+                </p>
+                <p className="mt-1 text-xs text-ink-3">
+                  추천 실행은 아직 제공하지 않아요. 누르면 예산 설정 화면으로만
+                  이동해요.
+                </p>
+              </div>
             </div>
 
             {/* 여행 이름 */}
@@ -207,26 +210,21 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
               )}
               {/* 프리셋 칩 */}
               <div className="mt-2 flex flex-wrap gap-2">
-                {[
-                  { name: '오사카', icon: '✈️' },
-                  { name: '도쿄', icon: '🗼' },
-                  { name: '강릉', icon: '🌊' },
-                  { name: '제주', icon: '🌴' },
-                ].map((place) => (
+                {['오사카', '도쿄', '강릉', '제주'].map((name) => (
                   <button
-                    key={place.name}
+                    key={name}
                     type="button"
                     onClick={() =>
-                      setForm((f) => ({ ...f, destination: place.name }))
+                      setForm((f) => ({ ...f, destination: name }))
                     }
                     className={`flex items-center gap-1.5 rounded-pill border px-3 py-1.5 text-sm transition-colors ${
-                      form.destination === place.name
+                      form.destination === name
                         ? 'border-brand bg-brand-soft text-brand-dark font-medium'
                         : 'border-surface-line text-ink-2 hover:bg-surface-bg-alt'
                     }`}
                   >
-                    <span>{place.icon}</span>
-                    {place.name}
+                    <MapPin size={13} className="shrink-0" />
+                    {name}
                   </button>
                 ))}
               </div>
@@ -399,7 +397,7 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
 
         {/* 하단 푸터 (고정) */}
         <div className="shrink-0 flex items-center justify-between border-t border-surface-line px-6 py-4">
-          <p className="text-sm text-ink-3">✏️ {summaryParts.join(' · ')}</p>
+          <p className="text-sm text-ink-3">{summaryParts.join(' · ')}</p>
           <div className="flex gap-3">
             <Button variant="secondary" type="button" onClick={onClose}>
               취소
