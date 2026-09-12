@@ -6,6 +6,18 @@ import { HeaderActionButton } from '@/components/layout';
 import { useHeaderAction } from '@/hooks/use-header-action';
 import { cn } from '@/lib/utils';
 import {
+  Wallet,
+  PieChart,
+  Timer,
+  CreditCard,
+  Receipt,
+  Users,
+  CalendarDays,
+  Bell,
+  CheckCheck,
+  type LucideIcon,
+} from 'lucide-react';
+import {
   useNotifications,
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
@@ -32,24 +44,24 @@ const BUDGET_TYPES: NotificationType[] = [
 ];
 
 /** type 기반 아이콘 (백엔드에 icon 필드가 없어 프론트에서 파생) */
-function iconFor(type: NotificationType): string {
+function iconFor(type: NotificationType): LucideIcon {
   switch (type) {
     case 'budget_warning':
     case 'budget_exceeded':
-      return '💰';
+      return Wallet;
     case 'category_warning':
     case 'category_exceeded':
-      return '📊';
+      return PieChart;
     case 'pace_warning':
-      return '⏱️';
+      return Timer;
     case 'settlement':
-      return '💳';
+      return CreditCard;
     case 'member_expense':
-      return '🧾';
+      return Receipt;
     case 'invite':
-      return '👥';
+      return Users;
     default:
-      return '📅';
+      return CalendarDays;
   }
 }
 
@@ -131,7 +143,8 @@ export default function NotificationsPage() {
 
   useHeaderAction(
     <HeaderActionButton variant="ghost" onClick={markAllRead}>
-      ✓ 모두 읽음
+      <CheckCheck size={16} />
+      모두 읽음
     </HeaderActionButton>,
   );
 
@@ -188,7 +201,9 @@ export default function NotificationsPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <span className="text-5xl mb-4">🔔</span>
+          <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-brand-tint text-brand">
+            <Bell size={24} />
+          </span>
           <h2 className="text-lg font-semibold text-ink">새 알림 없음</h2>
           <p className="mt-2 text-sm text-ink-3">
             {filter === 'unread'
@@ -219,8 +234,11 @@ export default function NotificationsPage() {
                   >
                     <div className="flex items-start gap-3">
                       {/* 아이콘 */}
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full text-base shrink-0 bg-surface-bg-alt">
-                        {iconFor(n.type)}
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full shrink-0 bg-surface-bg-alt text-ink-2">
+                        {(() => {
+                          const Icon = iconFor(n.type);
+                          return <Icon size={18} />;
+                        })()}
                       </div>
 
                       {/* 본문 */}

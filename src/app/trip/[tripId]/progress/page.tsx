@@ -1,10 +1,12 @@
 'use client';
 
+import { PieChart } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { HeaderActionButton } from '@/components/layout';
 import { useHeaderAction } from '@/hooks/use-header-action';
 import { CATEGORIES } from '@/lib/constants';
+import { CategoryIcon } from '@/lib/category-icons';
 import { formatKRW, cn } from '@/lib/utils';
 import { useTrip } from '@/hooks/use-trips';
 import { useMembers } from '@/hooks/use-members';
@@ -177,7 +179,9 @@ export default function ProgressDashboardPage() {
   if (budgetTotal === 0 && spentTotal === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <span className="text-5xl mb-4">📊</span>
+        <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-brand-tint text-brand">
+          <PieChart size={24} />
+        </span>
         <h2 className="text-lg font-semibold text-ink">
           예산을 설정하면 진행 현황을 볼 수 있어요
         </h2>
@@ -391,7 +395,7 @@ export default function ProgressDashboardPage() {
                         }}
                       />
                       <span className="text-sm font-medium text-ink group-hover:text-brand transition-colors">
-                        {cat?.icon} {cat?.label}
+                        {cat?.label}
                       </span>
                       {isOver && <Badge variant="danger">초과</Badge>}
                       {isWarn && <Badge variant="warn">임박</Badge>}
@@ -507,12 +511,13 @@ export default function ProgressDashboardPage() {
                 return (
                   <div key={exp.id} className="flex items-center gap-3">
                     <div
-                      className="flex h-10 w-10 items-center justify-center rounded-full text-base shrink-0"
+                      className="flex h-10 w-10 items-center justify-center rounded-full shrink-0"
                       style={{
                         backgroundColor: CATEGORY_COLORS[exp.categoryId] + '20',
+                        color: CATEGORY_COLORS[exp.categoryId] || '#6366F1',
                       }}
                     >
-                      {cat?.icon}
+                      <CategoryIcon id={exp.categoryId} size={18} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-ink truncate">

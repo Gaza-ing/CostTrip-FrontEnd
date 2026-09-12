@@ -2,14 +2,14 @@
  * 앱 전역 상수
  */
 
-/** 예산 카테고리 (6개) */
+/** 예산 카테고리 (6개). 아이콘은 lib/category-icons.tsx의 CategoryIcon 사용 */
 export const CATEGORIES = [
-  { id: 'stay', label: '숙소', icon: '🏨' },
-  { id: 'move', label: '교통', icon: '🚗' },
-  { id: 'food', label: '식비', icon: '🍽️' },
-  { id: 'tour', label: '관광', icon: '🎡' },
-  { id: 'shop', label: '쇼핑', icon: '🛍️' },
-  { id: 'etc', label: '기타', icon: '📦' },
+  { id: 'stay', label: '숙소' },
+  { id: 'move', label: '교통' },
+  { id: 'food', label: '식비' },
+  { id: 'tour', label: '관광' },
+  { id: 'shop', label: '쇼핑' },
+  { id: 'etc', label: '기타' },
 ] as const;
 
 export type CategoryId = (typeof CATEGORIES)[number]['id'];

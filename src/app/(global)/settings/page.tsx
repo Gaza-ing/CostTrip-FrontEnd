@@ -1,5 +1,15 @@
 'use client';
 
+import {
+  User,
+  RefreshCw,
+  Bell,
+  CircleDollarSign,
+  Upload,
+  Users,
+  CreditCard,
+  FileText,
+} from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -60,19 +70,24 @@ export default function SettingsPage() {
         <Card className="sticky top-20 hidden lg:block">
           <nav className="space-y-1">
             <button className="w-full flex items-center gap-2 rounded-sm px-3 py-2.5 text-sm font-medium text-brand bg-brand-tint">
-              👤 계정
+              <User size={16} />
+              계정
             </button>
             <button className="w-full flex items-center gap-2 rounded-sm px-3 py-2.5 text-sm font-medium text-ink-2 hover:bg-surface-bg-alt transition-colors">
-              🔄 동기화
+              <RefreshCw size={16} />
+              동기화
             </button>
             <button className="w-full flex items-center gap-2 rounded-sm px-3 py-2.5 text-sm font-medium text-ink-2 hover:bg-surface-bg-alt transition-colors">
-              🔔 알림
+              <Bell size={16} />
+              알림
             </button>
             <button className="w-full flex items-center gap-2 rounded-sm px-3 py-2.5 text-sm font-medium text-ink-2 hover:bg-surface-bg-alt transition-colors">
-              💲 통화
+              <CircleDollarSign size={16} />
+              통화
             </button>
             <button className="w-full flex items-center gap-2 rounded-sm px-3 py-2.5 text-sm font-medium text-ink-2 hover:bg-surface-bg-alt transition-colors">
-              📤 데이터
+              <Upload size={16} />
+              데이터
             </button>
           </nav>
         </Card>
@@ -103,8 +118,8 @@ export default function SettingsPage() {
             <h2 className="text-[13px] font-bold text-ink-2 mb-3">동기화</h2>
             <Card>
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-cat-stay-soft text-base">
-                  🔄
+                <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-cat-stay-soft text-cat-stay">
+                  <RefreshCw size={18} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-ink">동기화 상태</p>
@@ -128,8 +143,8 @@ export default function SettingsPage() {
             <Card>
               <div className="divide-y divide-surface-line">
                 <div className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-cat-shop-soft text-base">
-                    🔔
+                  <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-cat-shop-soft text-cat-shop">
+                    <Bell size={18} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-ink">예산 경고</p>
@@ -143,8 +158,8 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div className="flex items-center gap-3 py-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-cat-move-soft text-base">
-                    👥
+                  <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-cat-move-soft text-cat-move">
+                    <Users size={18} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-ink">멤버 활동</p>
@@ -158,8 +173,8 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div className="flex items-center gap-3 py-3 last:pb-0">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-cat-tour-soft text-base">
-                    💳
+                  <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-cat-tour-soft text-cat-tour">
+                    <CreditCard size={18} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-ink">정산 알림</p>
@@ -190,8 +205,9 @@ export default function SettingsPage() {
                     <option>대한민국 원 (KRW) ₩</option>
                   </select>
                 </div>
-                <span className="rounded-pill border border-dashed border-surface-line-strong px-3 py-1.5 text-[11px] text-ink-3 mb-1">
-                  ＄ 다중통화 [TODO]
+                <span className="mb-1 inline-flex items-center gap-1 rounded-pill border border-dashed border-surface-line-strong px-3 py-1.5 text-[11px] text-ink-3">
+                  <CircleDollarSign size={13} />
+                  다중통화 [TODO]
                 </span>
               </div>
               <p className="mt-3 text-xs text-ink-3">
@@ -207,8 +223,8 @@ export default function SettingsPage() {
             <Card>
               <div className="divide-y divide-surface-line">
                 <div className="flex items-center gap-3 py-3 first:pt-0">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-cat-food-soft text-base">
-                    📤
+                  <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-cat-food-soft text-cat-food">
+                    <Upload size={18} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-ink">
@@ -232,8 +248,8 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3 py-3 last:pb-0">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-cat-etc-soft text-base">
-                    📄
+                  <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-cat-etc-soft text-cat-etc">
+                    <FileText size={18} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-ink">약관 및 정책</p>

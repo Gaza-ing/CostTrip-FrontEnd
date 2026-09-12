@@ -1,5 +1,6 @@
 'use client';
 
+import { CheckCircle2, AlertCircle, Mail, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import Link from 'next/link';
@@ -61,7 +62,9 @@ export default function InviteAcceptPage() {
   if (accepted) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <span className="text-5xl mb-4">🎉</span>
+        <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-ok-soft text-ok-text">
+          <CheckCircle2 size={26} />
+        </span>
         <h2 className="text-lg font-semibold text-ink">합류 완료!</h2>
         <p className="mt-2 text-sm text-ink-3">
           여행에 합류했어요. 여행 화면으로 이동합니다...
@@ -74,7 +77,9 @@ export default function InviteAcceptPage() {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <span className="text-5xl mb-4">⏰</span>
+        <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-danger-soft text-danger-text">
+          <AlertCircle size={26} />
+        </span>
         <h2 className="text-lg font-semibold text-ink">
           초대를 사용할 수 없어요
         </h2>
@@ -92,14 +97,14 @@ export default function InviteAcceptPage() {
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="w-full max-w-[460px] space-y-5">
         <div className="text-center">
-          <div className="mx-auto mb-4 flex h-[72px] w-[72px] items-center justify-center rounded-full bg-brand text-[26px] font-bold text-on-brand">
-            ✉️
+          <div className="mx-auto mb-4 flex h-[72px] w-[72px] items-center justify-center rounded-full bg-brand text-on-brand">
+            <Mail size={32} />
           </div>
           <h1 className="text-2xl font-extrabold tracking-tight text-ink">
             여행 초대를 받았어요
           </h1>
           <p className="mt-2 text-sm text-ink-3">
-            초대를 수락하면 멤버로 합류해 일정과 지출을 함께 관리할 수 있어요 🎉
+            초대를 수락하면 멤버로 합류해 일정과 지출을 함께 관리할 수 있어요
           </p>
         </div>
 
@@ -113,7 +118,7 @@ export default function InviteAcceptPage() {
         </Card>
 
         <div className="flex items-center gap-3 rounded-sm bg-surface-bg-alt px-4 py-3">
-          <span className="text-base">💡</span>
+          <Lightbulb size={16} className="shrink-0 text-brand" />
           <p className="text-sm text-ink">
             수락하면 초대에 지정된 권한으로 합류해 일정·지출을 함께 기록할 수
             있어요.

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Ticket } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useAcceptInvite } from '@/hooks/use-members';
 import { toast } from '@/stores/toast-store';
@@ -44,7 +45,7 @@ export function JoinByCode() {
   return (
     <div className="rounded-md border border-surface-line bg-surface-card p-4">
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-base">🎟️</span>
+        <Ticket size={16} className="text-brand" />
         <h3 className="text-sm font-bold text-ink">초대 코드로 참여</h3>
       </div>
       <p className="text-xs text-ink-3 mb-3">

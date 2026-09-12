@@ -9,7 +9,7 @@ import { formatKRW, cn } from '@/lib/utils';
 import { useMembers } from '@/hooks/use-members';
 import { useSettlement, useToggleTransfer } from '@/hooks/use-settlement';
 import { toast } from '@/stores/toast-store';
-import { Check } from 'lucide-react';
+import { Check, Share2, User, Wallet, CircleDollarSign } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
@@ -78,7 +78,8 @@ export default function SettlementPage() {
   useHeaderAction(
     <div className="flex items-center gap-2">
       <HeaderActionButton variant="ghost" onClick={copyToClipboard}>
-        📤 공유
+        <Share2 size={16} />
+        공유
       </HeaderActionButton>
       <HeaderActionButton disabled={!allSettled}>
         <Check size={16} />
@@ -100,7 +101,9 @@ export default function SettlementPage() {
   if (members.length <= 1) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <span className="text-5xl mb-4">👤</span>
+        <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-brand-tint text-brand">
+          <User size={24} />
+        </span>
         <h2 className="text-lg font-semibold text-ink">
           단독 여행에서는 정산이 필요 없어요
         </h2>
@@ -120,7 +123,9 @@ export default function SettlementPage() {
   if (totalSettlementAmount === 0 && transfers.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <span className="text-5xl mb-4">💸</span>
+        <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-brand-tint text-brand">
+          <Wallet size={24} />
+        </span>
         <h2 className="text-lg font-semibold text-ink">
           정산할 내역이 없습니다
         </h2>
@@ -237,8 +242,8 @@ export default function SettlementPage() {
           </div>
 
           <div className="mt-4 flex items-center gap-2 rounded-sm bg-ok-soft px-4 py-3">
-            <span className="flex h-5 w-5 items-center justify-center rounded-sm bg-ok-text text-white text-xs font-bold">
-              ✓
+            <span className="flex h-5 w-5 items-center justify-center rounded-sm bg-ok-text text-white">
+              <Check size={13} />
             </span>
             <span className="text-sm text-ink">
               받을 금액{' '}
@@ -325,7 +330,14 @@ export default function SettlementPage() {
                               : 'border-surface-line text-ink-2 hover:border-brand hover:text-brand',
                           )}
                         >
-                          {t.isSettled ? '완료 ✓' : '보냄 체크'}
+                          {t.isSettled ? (
+                            <span className="inline-flex items-center gap-1">
+                              <Check size={12} />
+                              완료
+                            </span>
+                          ) : (
+                            '보냄 체크'
+                          )}
                         </button>
                       </div>
                     </div>
@@ -345,8 +357,8 @@ export default function SettlementPage() {
           <Card>
             <h3 className="text-sm font-bold text-ink mb-3">정산 마무리</h3>
             <div className="flex items-center gap-2 rounded-sm bg-ok-soft px-4 py-3 mb-4">
-              <span className="flex h-5 w-5 items-center justify-center rounded-sm bg-ok-text text-white text-xs font-bold">
-                ✓
+              <span className="flex h-5 w-5 items-center justify-center rounded-sm bg-ok-text text-white">
+                <Check size={13} />
               </span>
               <span className="text-sm text-ink">
                 송금이 모두 완료되면{' '}
@@ -354,8 +366,9 @@ export default function SettlementPage() {
               </span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="rounded-pill border border-dashed border-surface-line-strong px-3 py-1.5 text-[11px] text-ink-3">
-                ＄ 다중통화 [TODO]
+              <span className="inline-flex items-center gap-1 rounded-pill border border-dashed border-surface-line-strong px-3 py-1.5 text-[11px] text-ink-3">
+                <CircleDollarSign size={13} />
+                다중통화 [TODO]
               </span>
               <Button size="sm" className="ml-auto" disabled={!allSettled}>
                 정산 완료하기

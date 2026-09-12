@@ -13,7 +13,13 @@ import { useMembers } from '@/hooks/use-members';
 import { useExpenses } from '@/hooks/use-expenses';
 import { useBudgets } from '@/hooks/use-budgets';
 import { useDays } from '@/hooks/use-plan';
-import { Plus } from 'lucide-react';
+import {
+  Plus,
+  CalendarDays,
+  Wallet,
+  AlertCircle,
+  CircleDollarSign,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 
@@ -85,7 +91,9 @@ export default function TripMainPage() {
         <MemberAvatars members={members} tripId={tripId} />
         <div className="grid gap-5 lg:grid-cols-2">
           <Card className="flex flex-col items-center justify-center py-12 text-center">
-            <span className="text-4xl mb-3">📅</span>
+            <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-tint text-brand">
+              <CalendarDays size={22} />
+            </span>
             <h3 className="text-base font-semibold text-ink">
               날짜별 일정을 계획하세요
             </h3>
@@ -99,7 +107,9 @@ export default function TripMainPage() {
             </Link>
           </Card>
           <Card className="flex flex-col items-center justify-center py-12 text-center">
-            <span className="text-4xl mb-3">💰</span>
+            <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-tint text-brand">
+              <Wallet size={22} />
+            </span>
             <h3 className="text-base font-semibold text-ink">
               예산을 설정하세요
             </h3>
@@ -138,8 +148,8 @@ export default function TripMainPage() {
                     href={`/trip/${tripId}/plan/${i}`}
                     className="flex items-center gap-3 py-3 px-2 transition-colors hover:bg-surface-bg-alt rounded-xs"
                   >
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm text-lg">
-                      📋
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-surface-bg-alt text-ink-2">
+                      <CalendarDays size={16} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-ink truncate">
@@ -215,7 +225,10 @@ export default function TripMainPage() {
 
           {warnings.length > 0 && (
             <div className="flex items-start gap-2 rounded-sm bg-danger-soft px-4 py-3">
-              <span>🔴</span>
+              <AlertCircle
+                size={16}
+                className="mt-0.5 shrink-0 text-danger-text"
+              />
               <p className="text-sm text-danger-text">
                 <span className="text-ink-3">실지출 기준 · </span>
                 {warnings.map((w, i) => (
@@ -285,8 +298,9 @@ export default function TripMainPage() {
             </div>
           </Card>
 
-          <span className="inline-block rounded-xs border border-dashed border-surface-line-strong px-2 py-1 text-xs text-ink-3">
-            ＄ 다중통화 [TODO]
+          <span className="inline-flex items-center gap-1 rounded-xs border border-dashed border-surface-line-strong px-2 py-1 text-xs text-ink-3">
+            <CircleDollarSign size={13} />
+            다중통화 [TODO]
           </span>
         </div>
       </div>
