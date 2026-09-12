@@ -1,10 +1,15 @@
 'use client';
 
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/Modal';
 import { formatKRW } from '@/lib/utils';
+import { useDeleteTrip } from '@/hooks/use-trips';
+import { toast } from '@/stores/toast-store';
 import type { Trip } from '@/types';
-import { MoreHorizontal } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import Link from 'next/link';
+import { useState } from 'react';
 
 interface TripCardProps {
   trip: Trip;
@@ -37,6 +42,21 @@ export function TripCard({ trip }: TripCardProps) {
   // headcount 기반 아바타 자리표시 (목록에서는 멤버 상세를 조회하지 않음)
   const avatarCount = Math.min(trip.headcount, 4);
 
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const deleteTripMut = useDeleteTrip();
+
+  function handleDelete() {
+    deleteTripMut.mutate(trip.id, {
+      onSuccess: () => {
+        toast.success('여행이 삭제되었습니다');
+        setConfirmOpen(false);
+      },
+      onError: () => {
+        toast.error('여행 삭제에 실패했습니다');
+      },
+    });
+  }
+
   return (
     <div className="group relative overflow-hidden rounded-md border border-surface-line bg-surface-card shadow-sm transition-shadow hover:shadow-base">
       <Link href={`/trip/${trip.id}`} className="absolute inset-0 z-10">
@@ -45,14 +65,16 @@ export function TripCard({ trip }: TripCardProps) {
 
       {/* 커버 영역 */}
       <div className={`relative px-4 pb-4 pt-3 ${gradient}`}>
-        {/* ⋯ 버튼 */}
+        {/* 삭제 버튼 */}
         <button
-          className="relative z-20 flex h-7 w-7 items-center justify-center rounded-sm bg-black/30 text-white transition-colors hover:bg-black/50"
-          aria-label={`${trip.title} 추가 작업`}
-          aria-haspopup="menu"
-          onClick={(e) => e.preventDefault()}
+          className="relative z-20 flex h-7 w-7 items-center justify-center rounded-sm bg-black/30 text-white transition-colors hover:bg-danger hover:text-white"
+          aria-label={`${trip.title} 삭제`}
+          onClick={(e) => {
+            e.preventDefault();
+            setConfirmOpen(true);
+          }}
         >
-          <MoreHorizontal size={14} />
+          <Trash2 size={14} />
         </button>
 
         {/* D-day 배지 (우상단) — 실제 날짜 기반 */}
@@ -102,6 +124,33 @@ export function TripCard({ trip }: TripCardProps) {
           </span>
         </div>
       </div>
+
+      {/* 삭제 확인 모달 */}
+      <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)}>
+        <div className="p-6">
+          <h3 className="text-lg font-bold text-ink">여행을 삭제할까요?</h3>
+          <p className="mt-2 text-sm text-ink-2 leading-relaxed">
+            <b className="text-ink">{trip.title}</b> 여행이 삭제됩니다. 일정,
+            지출, 정산 등 모든 데이터가 함께 삭제되며 되돌릴 수 없어요.
+          </p>
+          <div className="mt-6 flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setConfirmOpen(false)}
+              disabled={deleteTripMut.isPending}
+            >
+              취소
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleDelete}
+              disabled={deleteTripMut.isPending}
+            >
+              {deleteTripMut.isPending ? '삭제 중...' : '삭제'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
