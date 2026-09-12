@@ -225,7 +225,10 @@ export default function TripMainPage() {
 
           {warnings.length > 0 && (
             <div className="flex items-start gap-2 rounded-sm bg-danger-soft px-4 py-3">
-              <AlertCircle size={16} className="mt-0.5 shrink-0 text-danger-text" />
+              <AlertCircle
+                size={16}
+                className="mt-0.5 shrink-0 text-danger-text"
+              />
               <p className="text-sm text-danger-text">
                 <span className="text-ink-3">실지출 기준 · </span>
                 {warnings.map((w, i) => (
