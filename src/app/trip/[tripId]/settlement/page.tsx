@@ -3,6 +3,7 @@
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Avatar } from '@/components/ui/Avatar';
 import { HeaderActionButton } from '@/components/layout';
 import { useHeaderAction } from '@/hooks/use-header-action';
 import { formatKRW, cn } from '@/lib/utils';
@@ -12,9 +13,6 @@ import { toast } from '@/stores/toast-store';
 import { Check, Share2, User, Wallet, CircleDollarSign } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-
-// 멤버 아바타 색상
-const MEMBER_COLORS = ['#6366F1', '#10B981', '#F97316', '#EC4899'];
 
 export default function SettlementPage() {
   const params = useParams();
@@ -29,18 +27,13 @@ export default function SettlementPage() {
   const totalSettlementAmount = settlement?.totalSettlementAmount ?? 0;
   const perPerson = settlement?.perPersonAverage ?? 0;
 
-  // 멤버 이름/색상 조회용 맵
-  const memberIndex = new Map(members.map((m, i) => [m.id, i]));
+  // 멤버 이름 조회용 (아바타 색은 Avatar가 id 시드로 결정)
   function nameOf(memberId: string): string {
     return (
       balances.find((b) => b.memberId === memberId)?.displayName ??
       members.find((m) => m.id === memberId)?.displayName ??
       '알 수 없음'
     );
-  }
-  function colorOf(memberId: string): string {
-    const idx = memberIndex.get(memberId) ?? 0;
-    return MEMBER_COLORS[idx % MEMBER_COLORS.length];
   }
 
   // 합계 (표시용)
@@ -194,12 +187,11 @@ export default function SettlementPage() {
                 className="grid grid-cols-[1fr_80px_80px_90px] gap-2 items-center"
               >
                 <div className="flex items-center gap-2">
-                  <div
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white shrink-0"
-                    style={{ backgroundColor: colorOf(b.memberId) }}
-                  >
-                    {b.displayName.charAt(0)}
-                  </div>
+                  <Avatar
+                    name={b.displayName}
+                    colorSeed={b.memberId}
+                    size={32}
+                  />
                   <span className="text-sm font-medium text-ink">
                     {b.displayName}
                   </span>
@@ -285,12 +277,11 @@ export default function SettlementPage() {
                       className="flex items-center gap-3"
                     >
                       <div className="flex items-center gap-1.5">
-                        <div
-                          className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white"
-                          style={{ backgroundColor: colorOf(t.fromMemberId) }}
-                        >
-                          {fromName.charAt(0)}
-                        </div>
+                        <Avatar
+                          name={fromName}
+                          colorSeed={t.fromMemberId}
+                          size={32}
+                        />
                         <span className="text-sm font-medium text-ink">
                           {fromName}
                         </span>
@@ -299,12 +290,11 @@ export default function SettlementPage() {
                       <span className="text-xs text-ink-3">보냄 →</span>
 
                       <div className="flex items-center gap-1.5">
-                        <div
-                          className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white"
-                          style={{ backgroundColor: colorOf(t.toMemberId) }}
-                        >
-                          {toName.charAt(0)}
-                        </div>
+                        <Avatar
+                          name={toName}
+                          colorSeed={t.toMemberId}
+                          size={32}
+                        />
                         <span className="text-sm font-medium text-ink">
                           {toName}
                         </span>

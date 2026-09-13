@@ -5,15 +5,16 @@ import { TripCard } from '@/components/trip/TripCard';
 import { JoinByCode } from '@/components/trip/JoinByCode';
 import { useTrips } from '@/hooks/use-trips';
 import { formatKRW } from '@/lib/utils';
+import { getTripPhase } from '@/lib/trip-status';
 import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
 
-type StatusFilter = 'all' | 'planning' | 'in_progress' | 'completed';
+type StatusFilter = 'all' | 'planning' | 'ongoing' | 'completed';
 
 const filterLabels: { value: StatusFilter; label: string }[] = [
   { value: 'all', label: '전체' },
   { value: 'planning', label: '예정' },
-  { value: 'in_progress', label: '진행중' },
+  { value: 'ongoing', label: '진행중' },
   { value: 'completed', label: '완료' },
 ];
 
@@ -21,15 +22,16 @@ export default function HomePage() {
   const { data: trips, isLoading, isError, refetch } = useTrips();
   const [filter, setFilter] = useState<StatusFilter>('all');
 
+  // 필터·통계는 날짜 기준 파생 상태(getTripPhase)로 통일 — 카드 배지와 일치
   const filteredTrips =
-    trips?.filter((t) => filter === 'all' || t.status === filter) ?? [];
+    trips?.filter((t) => filter === 'all' || getTripPhase(t) === filter) ?? [];
 
   // Web 상단 stat 계산 (여행 목록에서 파생 가능한 값만)
   const stats = trips
     ? {
-        ongoing: trips.filter((t) => t.status === 'in_progress').length,
-        planning: trips.filter((t) => t.status === 'planning').length,
-        completed: trips.filter((t) => t.status === 'completed').length,
+        ongoing: trips.filter((t) => getTripPhase(t) === 'ongoing').length,
+        planning: trips.filter((t) => getTripPhase(t) === 'planning').length,
+        completed: trips.filter((t) => getTripPhase(t) === 'completed').length,
         totalBudget: trips.reduce((sum, t) => sum + t.totalBudget, 0),
         noBudgetCount: trips.filter((t) => t.totalBudget === 0).length,
       }
