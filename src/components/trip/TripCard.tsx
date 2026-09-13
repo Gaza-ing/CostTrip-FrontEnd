@@ -7,6 +7,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { formatKRW } from '@/lib/utils';
 import { useDeleteTrip } from '@/hooks/use-trips';
 import { useMembers } from '@/hooks/use-members';
+import { getTripPhase, tripPhaseLabel } from '@/lib/trip-status';
 import { toast } from '@/stores/toast-store';
 import type { Trip } from '@/types';
 import { Trash2, MapPin, Calendar } from 'lucide-react';
@@ -33,14 +34,15 @@ function gradientFor(id: string): string {
 
 const MAX_AVATARS = 4;
 
-const statusBadgeVariant: Record<string, 'brand' | 'ok' | 'default'> = {
-  오늘: 'brand',
-  예정: 'ok',
-  완료: 'default',
+const phaseBadgeVariant: Record<string, 'brand' | 'ok' | 'default'> = {
+  ongoing: 'brand',
+  planning: 'ok',
+  completed: 'default',
 };
 
 export function TripCard({ trip }: TripCardProps) {
   const gradient = gradientFor(trip.id);
+  const phase = getTripPhase(trip);
 
   // 실제 멤버로 이니셜 아바타 표시. 로딩/미조회 시 headcount로 폴백.
   const { data: members } = useMembers(trip.id);
@@ -108,10 +110,8 @@ export function TripCard({ trip }: TripCardProps) {
       <div className="px-4 py-3">
         {/* 상태 배지 + 멤버 아바타 */}
         <div className="flex items-center justify-between">
-          <Badge
-            variant={statusBadgeVariant[computeStatusLabel(trip)] || 'default'}
-          >
-            {computeStatusLabel(trip)}
+          <Badge variant={phaseBadgeVariant[phase] || 'default'}>
+            {tripPhaseLabel(phase)}
           </Badge>
           <div className="flex -space-x-1.5">
             {shownMembers.map((m) => (
@@ -192,43 +192,23 @@ function getDuration(trip: Trip) {
 }
 
 function computeDdayLabel(trip: Trip): string {
+  const phase = getTripPhase(trip);
+  if (phase === 'completed') return '완료';
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const start = new Date(trip.startDate);
   start.setHours(0, 0, 0, 0);
-  const end = new Date(trip.endDate);
-  end.setHours(0, 0, 0, 0);
 
-  if (trip.status === 'completed') return '완료';
-
-  if (today < start) {
+  if (phase === 'planning') {
     const diff = Math.ceil(
       (start.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
     );
     return `D-${diff}`;
   }
 
-  if (today >= start && today <= end) {
-    const dayNum =
-      Math.ceil((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) +
-      1;
-    return `Day ${dayNum}`;
-  }
-
-  return '완료';
-}
-
-function computeStatusLabel(trip: Trip): string {
-  if (trip.status === 'completed') return '완료';
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const start = new Date(trip.startDate);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(trip.endDate);
-  end.setHours(0, 0, 0, 0);
-
-  if (today >= start && today <= end) return '오늘';
-  if (today < start) return '예정';
-  return '완료';
+  // ongoing: 여행 중 며칠째인지
+  const dayNum =
+    Math.ceil((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  return `Day ${dayNum}`;
 }
