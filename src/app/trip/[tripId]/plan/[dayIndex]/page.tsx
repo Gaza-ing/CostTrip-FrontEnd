@@ -9,6 +9,8 @@ import { HeaderActionButton } from '@/components/layout';
 import { useHeaderAction } from '@/hooks/use-header-action';
 import { CATEGORIES } from '@/lib/constants';
 import { CategoryIcon } from '@/lib/category-icons';
+import { KakaoMap } from '@/components/map/KakaoMap';
+import { PlaceSearch, type SelectedPlace } from '@/components/map/PlaceSearch';
 import { formatKRW, cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/app-store';
 import { useTrip } from '@/hooks/use-trips';
@@ -88,21 +90,64 @@ export default function DayPlanPage() {
     [serverItems],
   );
 
+  // 세션 좌표: 백엔드가 좌표를 저장하지 않으므로, 이번 세션 동안만
+  // itemId -> { lat, lng, placeName } 을 클라이언트 상태로 보관한다.
+  // (새로고침하면 사라짐 — 옵션 A)
+  const [sessionCoords, setSessionCoords] = useState<
+    Record<string, { lat: number; lng: number; placeName: string }>
+  >({});
+
   // dnd 로컬 순서 오버라이드(id 배열). 없으면 서버 정렬을 그대로 사용.
   const [orderOverride, setOrderOverride] = useState<string[] | null>(null);
   const items = useMemo(() => {
-    if (!orderOverride) return serverSorted;
-    const byId = new Map(serverSorted.map((i) => [i.id, i]));
-    const ordered = orderOverride
-      .map((id) => byId.get(id))
-      .filter((i): i is PlanItem => !!i);
-    // 오버라이드에 없는 신규 항목은 뒤에 붙임
-    const extras = serverSorted.filter((i) => !orderOverride.includes(i.id));
-    return [...ordered, ...extras];
-  }, [serverSorted, orderOverride]);
+    const base = !orderOverride
+      ? serverSorted
+      : (() => {
+          const byId = new Map(serverSorted.map((i) => [i.id, i]));
+          const ordered = orderOverride
+            .map((id) => byId.get(id))
+            .filter((i): i is PlanItem => !!i);
+          // 오버라이드에 없는 신규 항목은 뒤에 붙임
+          const extras = serverSorted.filter(
+            (i) => !orderOverride.includes(i.id),
+          );
+          return [...ordered, ...extras];
+        })();
+    // 세션 좌표를 병합
+    return base.map((i) => {
+      const c = sessionCoords[i.id];
+      return c ? { ...i, latitude: c.lat, longitude: c.lng } : i;
+    });
+  }, [serverSorted, orderOverride, sessionCoords]);
 
   const totalCost = items.reduce((sum, item) => sum + item.estimatedCost, 0);
   const placeCount = items.filter((i) => i.latitude).length;
+
+  // 좌표가 있는 항목만 순서대로 지도 마커로 변환
+  const mapMarkers = useMemo(
+    () =>
+      items
+        .filter(
+          (i): i is PlanItem & { latitude: number; longitude: number } =>
+            i.latitude != null && i.longitude != null,
+        )
+        .map((i, idx) => ({
+          lat: i.latitude,
+          lng: i.longitude,
+          label: sessionCoords[i.id]?.placeName || i.title,
+          order: idx + 1,
+        })),
+    [items, sessionCoords],
+  );
+
+  // 마커들을 순서대로 이은 직선 이동거리 합(km). 실제 도로거리는 아님(근사).
+  const routeDistanceKm = useMemo(() => {
+    let sum = 0;
+    for (let i = 1; i < mapMarkers.length; i++) {
+      sum += haversineKm(mapMarkers[i - 1], mapMarkers[i]);
+    }
+    return sum;
+  }, [mapMarkers]);
 
   // 슬라이드 패널 state
   const [panelOpen, setPanelOpen] = useState(false);
@@ -111,7 +156,17 @@ export default function DayPlanPage() {
 
   // D-day 라벨: 클라이언트에서만 정확한 값 (suppressHydrationWarning으로 처리)
   const dayLabel = getDayLabelFromStart(dayIndex, tripStartDate);
-  const [panelForm, setPanelForm] = useState({
+  const [panelForm, setPanelForm] = useState<{
+    title: string;
+    categoryId: string;
+    startTime: string;
+    endTime: string;
+    estimatedCost: number;
+    place: string;
+    memo: string;
+    lat: number | null;
+    lng: number | null;
+  }>({
     title: '',
     categoryId: 'tour',
     startTime: '',
@@ -119,6 +174,8 @@ export default function DayPlanPage() {
     estimatedCost: 0,
     place: '',
     memo: '',
+    lat: null,
+    lng: null,
   });
 
   function openAddPanel() {
@@ -131,6 +188,8 @@ export default function DayPlanPage() {
       estimatedCost: 0,
       place: '',
       memo: '',
+      lat: null,
+      lng: null,
     });
     setPanelOpen(true);
     setEditMode({
@@ -142,14 +201,17 @@ export default function DayPlanPage() {
 
   function openEditPanel(item: PlanItem) {
     setEditingItem(item);
+    const coord = sessionCoords[item.id];
     setPanelForm({
       title: item.title,
       categoryId: item.categoryId,
       startTime: item.startTime || '',
       endTime: item.endTime || '',
       estimatedCost: item.estimatedCost,
-      place: '',
+      place: coord?.placeName ?? '',
       memo: '',
+      lat: coord?.lat ?? item.latitude ?? null,
+      lng: coord?.lng ?? item.longitude ?? null,
     });
     setPanelOpen(true);
     setEditMode({
@@ -164,12 +226,42 @@ export default function DayPlanPage() {
     clearEditMode();
   }
 
+  /** 검색 결과에서 장소를 선택하면 폼에 좌표를 채운다. */
+  function handlePlaceSelect(place: SelectedPlace) {
+    setPanelForm((f) => ({
+      ...f,
+      place: place.name,
+      lat: place.lat,
+      lng: place.lng,
+      // 제목이 비어 있으면 장소명을 기본 제목으로 채워준다
+      title: f.title || place.name,
+    }));
+  }
+
+  /** itemId에 세션 좌표를 저장(또는 좌표가 없으면 제거). */
+  function persistCoord(itemId: string) {
+    setSessionCoords((prev) => {
+      const next = { ...prev };
+      if (panelForm.lat != null && panelForm.lng != null) {
+        next[itemId] = {
+          lat: panelForm.lat,
+          lng: panelForm.lng,
+          placeName: panelForm.place,
+        };
+      } else {
+        delete next[itemId];
+      }
+      return next;
+    });
+  }
+
   function handlePanelSave() {
     if (!dayId) return;
     if (editingItem) {
+      const editId = editingItem.id;
       updateItemMut.mutate(
         {
-          itemId: editingItem.id,
+          itemId: editId,
           patch: {
             title: panelForm.title || editingItem.title,
             categoryId: panelForm.categoryId,
@@ -180,7 +272,12 @@ export default function DayPlanPage() {
           },
           dayDate,
         },
-        { onSuccess: closePanel },
+        {
+          onSuccess: () => {
+            persistCoord(editId);
+            closePanel();
+          },
+        },
       );
     } else {
       createItemMut.mutate(
@@ -196,7 +293,12 @@ export default function DayPlanPage() {
           },
           dayDate,
         },
-        { onSuccess: closePanel },
+        {
+          onSuccess: (created) => {
+            persistCoord(created.id);
+            closePanel();
+          },
+        },
       );
     }
   }
@@ -227,7 +329,16 @@ export default function DayPlanPage() {
 
   function deleteItem(id: string) {
     if (confirm('이 일정을 삭제할까요?')) {
-      deleteItemMut.mutate(id);
+      deleteItemMut.mutate(id, {
+        onSuccess: () => {
+          setSessionCoords((prev) => {
+            if (!(id in prev)) return prev;
+            const next = { ...prev };
+            delete next[id];
+            return next;
+          });
+        },
+      });
     }
   }
 
@@ -261,7 +372,7 @@ export default function DayPlanPage() {
           ))}
         </div>
         <span className="shrink-0 text-sm text-ink-3">
-          7월 12일 (일) · 오사카성 · 도톤보리
+          {formatDayDate(dayDate)}
         </span>
       </div>
 
@@ -324,6 +435,7 @@ export default function DayPlanPage() {
                         item={item}
                         index={index}
                         total={items.length}
+                        placeName={sessionCoords[item.id]?.placeName}
                         onEdit={() => openEditPanel(item)}
                         onMoveUp={() => moveItem(index, 'up')}
                         onMoveDown={() => moveItem(index, 'down')}
@@ -359,70 +471,50 @@ export default function DayPlanPage() {
           </Button>
         </div>
 
-        {/* 우: 지도 (placeholder) */}
+        {/* 우: 지도 · 동선 (카카오맵) */}
         <div className="space-y-4">
-          <h2 className="text-sm font-semibold text-ink">지도 · 동선</h2>
-
-          {/* 지도 placeholder */}
-          <div
-            className="relative rounded-md border border-surface-line bg-surface-bg-alt overflow-hidden"
-            style={{ height: 420 }}
-          >
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-ink-3">
-              <MapPin size={32} className="mb-2 text-brand opacity-50" />
-              <p className="text-sm font-medium">지도 영역</p>
-              <p className="text-xs mt-1">카카오맵 API 연동 예정</p>
-            </div>
-
-            {/* Mock 동선 표시 */}
-            <div className="absolute inset-0 p-6">
-              {/* 출발점 */}
-              <div className="absolute left-[20%] bottom-[25%] flex items-center gap-1">
-                <div className="h-3 w-3 rounded-pill bg-ok" />
-                <span className="text-[10px] text-ink-2 font-medium">
-                  09:30 오사카성
-                </span>
-              </div>
-              {/* 중간점 */}
-              <div className="absolute left-[40%] top-[55%] flex items-center gap-1">
-                <div className="h-3 w-3 rounded-pill bg-warn" />
-                <span className="text-[10px] text-ink-2 font-medium">
-                  도톤보리
-                </span>
-              </div>
-              {/* 쇼핑 */}
-              <div className="absolute right-[20%] top-[40%] flex items-center gap-1">
-                <div className="h-3 w-3 rounded-pill bg-cat-shop" />
-                <span className="text-[10px] text-ink-2 font-medium">
-                  15:00 신사이바시
-                </span>
-              </div>
-              {/* 호텔 */}
-              <div className="absolute right-[15%] top-[15%] flex items-center gap-1">
-                <div className="h-3 w-3 rounded-pill bg-brand" />
-                <span className="text-[10px] text-ink-2 font-medium">
-                  19:00 호텔
-                </span>
-              </div>
-
-              {/* 경로 표시 (점선) */}
-              <div className="absolute top-[20%] left-[22%] text-xs text-brand opacity-50">
-                <span className="text-[10px]">오사카성 → 도톤보리 일대</span>
-              </div>
-            </div>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-ink">지도 · 동선</h2>
+            {mapMarkers.length > 0 && (
+              <span className="text-xs text-ink-3">
+                위치 지정 {mapMarkers.length}곳
+              </span>
+            )}
           </div>
 
-          {/* 이동 요약 */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-sm border border-surface-line bg-surface-card p-4 text-center">
-              <p className="text-xs text-ink-3">총 이동 거리</p>
-              <p className="mt-1 text-lg font-bold text-ink">약 3.2km</p>
+          <KakaoMap
+            height={420}
+            markers={mapMarkers}
+            showRoute={mapMarkers.length >= 2}
+          />
+
+          {mapMarkers.length === 0 ? (
+            <p className="rounded-sm border border-dashed border-surface-line bg-surface-bg-alt px-4 py-3 text-center text-xs text-ink-3">
+              일정 항목을 편집해 장소를 검색하면 지도에 표시돼요.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-sm border border-surface-line bg-surface-card p-4 text-center">
+                <p className="text-xs text-ink-3">총 이동 거리</p>
+                <p className="mt-1 text-lg font-bold text-ink">
+                  {mapMarkers.length >= 2
+                    ? `약 ${routeDistanceKm.toFixed(1)}km`
+                    : '-'}
+                </p>
+              </div>
+              <div className="rounded-sm border border-surface-line bg-surface-card p-4 text-center">
+                <p className="text-xs text-ink-3">위치 지정</p>
+                <p className="mt-1 text-lg font-bold text-ink">
+                  {mapMarkers.length}곳
+                </p>
+              </div>
             </div>
-            <div className="rounded-sm border border-surface-line bg-surface-card p-4 text-center">
-              <p className="text-xs text-ink-3">예상 이동 시간</p>
-              <p className="mt-1 text-lg font-bold text-ink">약 48분</p>
-            </div>
-          </div>
+          )}
+          {mapMarkers.length >= 2 && (
+            <p className="text-center text-[11px] text-ink-3">
+              * 직선 거리 기준 근사값입니다.
+            </p>
+          )}
         </div>
       </div>
 
@@ -469,21 +561,49 @@ export default function DayPlanPage() {
             }
           />
 
-          {/* 장소 */}
-          <Input
-            label="장소"
-            placeholder="장소명 검색"
-            value={panelForm.place}
-            onChange={(e) =>
-              setPanelForm((f) => ({ ...f, place: e.target.value }))
-            }
-            hint="카카오맵 연동 예정"
-          />
-
-          {/* 지도 placeholder */}
-          <div className="h-32 rounded-sm border border-surface-line bg-surface-bg-alt flex items-center justify-center text-xs text-ink-3">
-            <MapPin size={16} className="mr-1 text-brand opacity-50" />
-            지도 미리보기 (연동 예정)
+          {/* 장소 검색 (카카오) */}
+          <div>
+            <PlaceSearch
+              label="장소"
+              defaultKeyword={panelForm.place}
+              onSelect={handlePlaceSelect}
+            />
+            {panelForm.lat != null && panelForm.lng != null ? (
+              <>
+                <div className="mt-2 flex items-center gap-1.5 text-xs text-ink-2">
+                  <MapPin size={13} className="shrink-0 text-brand" />
+                  <span className="truncate">
+                    {panelForm.place || '선택한 위치'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPanelForm((f) => ({ ...f, lat: null, lng: null }))
+                    }
+                    className="ml-auto shrink-0 text-ink-3 hover:text-danger-text"
+                  >
+                    좌표 지우기
+                  </button>
+                </div>
+                {/* 미니맵 미리보기 */}
+                <KakaoMap
+                  className="mt-2"
+                  height={140}
+                  markers={[
+                    {
+                      lat: panelForm.lat,
+                      lng: panelForm.lng,
+                      label: panelForm.place || undefined,
+                    },
+                  ]}
+                />
+              </>
+            ) : (
+              <div className="mt-2 flex h-32 items-center justify-center rounded-sm border border-dashed border-surface-line bg-surface-bg-alt text-xs text-ink-3">
+                <MapPin size={16} className="mr-1 text-brand opacity-50" />
+                장소를 검색해 위치를 지정하세요
+              </div>
+            )}
           </div>
 
           {/* 시간 */}
@@ -587,6 +707,7 @@ function SortableTimelineItem({
   item,
   index,
   total,
+  placeName,
   onEdit,
   onMoveUp,
   onMoveDown,
@@ -595,6 +716,7 @@ function SortableTimelineItem({
   item: PlanItem;
   index: number;
   total: number;
+  placeName?: string;
   onEdit: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
@@ -652,7 +774,7 @@ function SortableTimelineItem({
           >
             {CATEGORIES.find((c) => c.id === item.categoryId)?.label}
           </Badge>
-          · {item.latitude ? '오사카' : '장소 미정'}
+          · {placeName || (item.latitude ? '위치 지정됨' : '장소 미정')}
           {item.endTime &&
             item.startTime &&
             ` · 약 ${getTimeDiff(item.startTime, item.endTime)}`}
@@ -739,4 +861,30 @@ function getTimeDiff(start: string, end: string): string {
     return m > 0 ? `${h}시간 ${m}분` : `${h}시간`;
   }
   return `${diff}분`;
+}
+
+/** 두 좌표 사이의 직선(대권) 거리(km). */
+function haversineKm(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const R = 6371; // 지구 반지름(km)
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+/** ISO date(YYYY-MM-DD) → "M월 D일 (요일)". 없으면 빈 문자열. */
+function formatDayDate(iso?: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const week = ['일', '월', '화', '수', '목', '금', '토'];
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${week[d.getDay()]})`;
 }
