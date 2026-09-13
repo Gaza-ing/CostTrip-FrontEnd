@@ -3,8 +3,10 @@
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
+import { Avatar } from '@/components/ui/Avatar';
 import { formatKRW } from '@/lib/utils';
 import { useDeleteTrip } from '@/hooks/use-trips';
+import { useMembers } from '@/hooks/use-members';
 import { toast } from '@/stores/toast-store';
 import type { Trip } from '@/types';
 import { Trash2, MapPin, Calendar } from 'lucide-react';
@@ -29,7 +31,7 @@ function gradientFor(id: string): string {
   return GRADIENTS[hash % GRADIENTS.length];
 }
 
-const memberColors = ['bg-brand', 'bg-ok', 'bg-warn', 'bg-member-purple'];
+const MAX_AVATARS = 4;
 
 const statusBadgeVariant: Record<string, 'brand' | 'ok' | 'default'> = {
   오늘: 'brand',
@@ -39,8 +41,16 @@ const statusBadgeVariant: Record<string, 'brand' | 'ok' | 'default'> = {
 
 export function TripCard({ trip }: TripCardProps) {
   const gradient = gradientFor(trip.id);
-  // headcount 기반 아바타 자리표시 (목록에서는 멤버 상세를 조회하지 않음)
-  const avatarCount = Math.min(trip.headcount, 4);
+
+  // 실제 멤버로 이니셜 아바타 표시. 로딩/미조회 시 headcount로 폴백.
+  const { data: members } = useMembers(trip.id);
+  const shownMembers = members?.slice(0, MAX_AVATARS) ?? [];
+  // 멤버 목록이 있을 때만 초과 인원(+N) 계산
+  const extraCount = members
+    ? Math.max(0, members.length - shownMembers.length)
+    : 0;
+  // 멤버를 아직 못 받았을 때 채울 폴백 개수(색 없는 원형)
+  const fallbackCount = members ? 0 : Math.min(trip.headcount, MAX_AVATARS);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const deleteTripMut = useDeleteTrip();
@@ -104,14 +114,30 @@ export function TripCard({ trip }: TripCardProps) {
             {computeStatusLabel(trip)}
           </Badge>
           <div className="flex -space-x-1.5">
-            {Array.from({ length: avatarCount }).map((_, i) => (
-              <div
-                key={i}
-                className={`flex h-6 w-6 items-center justify-center rounded-pill border-2 border-surface-card text-[10px] font-bold text-on-brand ${memberColors[i % memberColors.length]}`}
-              >
-                {i + 1}
-              </div>
+            {shownMembers.map((m) => (
+              <Avatar
+                key={m.id}
+                name={m.displayName}
+                colorSeed={m.id}
+                size={24}
+                className="border-2 border-surface-card text-[10px]"
+                title={m.displayName}
+              />
             ))}
+            {/* 멤버 목록 미도착 시 headcount 기반 폴백(색상 원형만) */}
+            {fallbackCount > 0 &&
+              Array.from({ length: fallbackCount }).map((_, i) => (
+                <span
+                  key={`fallback-${i}`}
+                  className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-surface-card bg-surface-line-strong"
+                  aria-hidden
+                />
+              ))}
+            {extraCount > 0 && (
+              <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-surface-card bg-ink-3 text-[10px] font-bold text-white">
+                +{extraCount}
+              </span>
+            )}
           </div>
         </div>
 

@@ -5,3 +5,4 @@ export { Badge } from './Badge';
 export { ProgressBar } from './ProgressBar';
 export { Modal } from './Modal';
 export { SlidePanel } from './SlidePanel';
+export { Avatar, AVATAR_COLORS, avatarColor, initialOf } from './Avatar';

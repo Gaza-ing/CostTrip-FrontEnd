@@ -15,13 +15,11 @@ import {
   useCreateInvite,
 } from '@/hooks/use-members';
 import { toast } from '@/stores/toast-store';
+import { Avatar } from '@/components/ui/Avatar';
 import { Plus, Copy, Link2 } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import type { Invite } from '@/types';
-
-// 멤버 아바타 색상
-const MEMBER_COLORS = ['#6366F1', '#10B981', '#F97316', '#8B5CF6'];
 
 export default function MembersPage() {
   const params = useParams();
@@ -173,15 +171,7 @@ export default function MembersPage() {
                   className="grid grid-cols-[1fr_80px_120px_100px] gap-2 items-center"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div
-                      className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold text-white shrink-0"
-                      style={{
-                        backgroundColor:
-                          MEMBER_COLORS[i % MEMBER_COLORS.length],
-                      }}
-                    >
-                      {m.displayName.charAt(0)}
-                    </div>
+                    <Avatar name={m.displayName} colorSeed={m.id} size={36} />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="text-sm font-medium text-ink truncate">
