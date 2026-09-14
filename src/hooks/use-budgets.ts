@@ -28,7 +28,12 @@ export function useBudgetCategories(tripId: string) {
 export function useSaveBudgets(tripId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: BudgetData) => saveBudgets(tripId, data),
+    mutationFn: (
+      data: BudgetData & {
+        warningThreshold?: number;
+        overThreshold?: number;
+      },
+    ) => saveBudgets(tripId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budgets', tripId] });
       queryClient.invalidateQueries({ queryKey: ['trips', tripId] });

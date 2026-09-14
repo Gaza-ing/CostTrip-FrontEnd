@@ -134,7 +134,9 @@ export default function ExpenseListPage() {
           여행 중 지출을 기록하면 여기서 확인할 수 있습니다
         </p>
         <Link href={`/trip/${tripId}/expense/add`}>
-          <Button size="sm">+ 지출 추가</Button>
+          <Button className="mt-6" size="sm">
+            + 지출 추가
+          </Button>
         </Link>
       </div>
     );

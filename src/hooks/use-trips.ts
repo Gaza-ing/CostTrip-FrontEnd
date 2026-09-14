@@ -30,8 +30,16 @@ export function useCreateTrip() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: Omit<Trip, 'id' | 'createdAt' | 'updatedAt'>) =>
-      createTrip(data),
+    mutationFn: (
+      data: Omit<
+        Trip,
+        | 'id'
+        | 'createdAt'
+        | 'updatedAt'
+        | 'budgetWarningThreshold'
+        | 'budgetOverThreshold'
+      >,
+    ) => createTrip(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trips'] });
     },

@@ -71,8 +71,19 @@ function BudgetSetupForm({
       return base;
     },
   );
-  const [warningThreshold, setWarningThreshold] = useState(80);
-  const [overThreshold, setOverThreshold] = useState(100);
+  // 임계값: trip 값을 기본으로, 편집 중에는 override로 즉시 반영
+  const [thresholdOverride, setThresholdOverride] = useState<{
+    warning?: number;
+    over?: number;
+  }>({});
+  const warningThreshold =
+    thresholdOverride.warning ?? trip?.budgetWarningThreshold ?? 80;
+  const overThreshold =
+    thresholdOverride.over ?? trip?.budgetOverThreshold ?? 100;
+  const setWarningThreshold = (v: number) =>
+    setThresholdOverride((o) => ({ ...o, warning: v }));
+  const setOverThreshold = (v: number) =>
+    setThresholdOverride((o) => ({ ...o, over: v }));
   const [showTable, setShowTable] = useState(false);
 
   const categoryTotal = Object.values(localBudgets).reduce(
@@ -96,9 +107,18 @@ function BudgetSetupForm({
     // 이미 저장 중이면 중복 제출 방지
     if (saveBudgetsMut.isPending) return;
     saveBudgetsMut.mutate(
-      { totalBudget: localTotal, categoryBudgets: localBudgets },
       {
-        onSuccess: () => toast.success('예산이 저장되었습니다'),
+        totalBudget: localTotal,
+        categoryBudgets: localBudgets,
+        warningThreshold,
+        overThreshold,
+      },
+      {
+        onSuccess: () => {
+          toast.success('예산이 저장되었습니다');
+          // 저장 후 서버값을 기준으로 삼도록 override 초기화
+          setThresholdOverride({});
+        },
         onError: () => toast.error('예산 저장에 실패했습니다'),
       },
     );
@@ -112,7 +132,13 @@ function BudgetSetupForm({
     >
       {saveBudgetsMut.isPending ? '저장 중...' : '예산 저장'}
     </HeaderActionButton>,
-    [localTotal, localBudgets, saveBudgetsMut.isPending],
+    [
+      localTotal,
+      localBudgets,
+      warningThreshold,
+      overThreshold,
+      saveBudgetsMut.isPending,
+    ],
   );
 
   // Chart.js 데이터
