@@ -93,6 +93,8 @@ function BudgetSetupForm({
   const perDay = categoryTotal > 0 ? Math.round(categoryTotal / totalDays) : 0;
 
   function handleSave() {
+    // 이미 저장 중이면 중복 제출 방지
+    if (saveBudgetsMut.isPending) return;
     saveBudgetsMut.mutate(
       { totalBudget: localTotal, categoryBudgets: localBudgets },
       {
@@ -104,8 +106,13 @@ function BudgetSetupForm({
 
   // 헤더 우측 액션: 예산 설정 전용 "예산 저장" 버튼
   useHeaderAction(
-    <HeaderActionButton onClick={handleSave}>예산 저장</HeaderActionButton>,
-    [localTotal, localBudgets],
+    <HeaderActionButton
+      onClick={handleSave}
+      disabled={saveBudgetsMut.isPending}
+    >
+      {saveBudgetsMut.isPending ? '저장 중...' : '예산 저장'}
+    </HeaderActionButton>,
+    [localTotal, localBudgets, saveBudgetsMut.isPending],
   );
 
   // Chart.js 데이터

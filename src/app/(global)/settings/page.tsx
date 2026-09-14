@@ -19,6 +19,9 @@ import { ProfileEditModal } from '@/components/settings/ProfileEditModal';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth-context';
 import { useMyProfile } from '@/hooks/use-my-profile';
+import { useMe } from '@/hooks/use-auth-user';
+import { syncUser } from '@/lib/api/auth';
+import { toast } from '@/stores/toast-store';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
@@ -69,13 +72,43 @@ function ToggleSwitch({ checked, onChange }: ToggleSwitchProps) {
 export default function SettingsPage() {
   const router = useRouter();
   const { displayName, email, avatarColor } = useMyProfile();
+  const { data: me } = useMe();
   const { signOut } = useAuth();
   const queryClient = useQueryClient();
   const [profileOpen, setProfileOpen] = useState(false);
-  const [budgetAlert, setBudgetAlert] = useState(true);
-  const [memberAlert, setMemberAlert] = useState(true);
-  const [settlementAlert, setSettlementAlert] = useState(false);
   const [activeSection, setActiveSection] = useState<SectionId>('account');
+  // 알림 토글: 서버(me) 값을 기본으로, 변경 중에는 로컬 override로 즉시 반영
+  const [notifyOverride, setNotifyOverride] = useState<{
+    budget?: boolean;
+    member?: boolean;
+    settlement?: boolean;
+  }>({});
+  const budgetAlert = notifyOverride.budget ?? me?.notifyBudget ?? true;
+  const memberAlert = notifyOverride.member ?? me?.notifyMember ?? true;
+  const settlementAlert =
+    notifyOverride.settlement ?? me?.notifySettlement ?? true;
+
+  // 토글 변경 시 즉시 서버 저장(낙관적 UI). 실패 시 원복.
+  async function saveNotifyPref(
+    localKey: 'budget' | 'member' | 'settlement',
+    apiKey: 'notifyBudget' | 'notifyMember' | 'notifySettlement',
+    value: boolean,
+  ) {
+    if (!me) return;
+    setNotifyOverride((o) => ({ ...o, [localKey]: value }));
+    try {
+      await syncUser({
+        email: me.email,
+        displayName: me.displayName,
+        photoUrl: me.photoUrl,
+        [apiKey]: value,
+      });
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+    } catch {
+      setNotifyOverride((o) => ({ ...o, [localKey]: !value }));
+      toast.error('알림 설정 저장에 실패했어요');
+    }
+  }
 
   // nav 클릭 → 해당 섹션으로 스크롤
   function scrollToSection(id: SectionId) {
@@ -204,7 +237,9 @@ export default function SettingsPage() {
                   </div>
                   <ToggleSwitch
                     checked={budgetAlert}
-                    onChange={setBudgetAlert}
+                    onChange={(v) =>
+                      saveNotifyPref('budget', 'notifyBudget', v)
+                    }
                   />
                 </div>
                 <div className="flex items-center gap-3 py-3">
@@ -219,7 +254,9 @@ export default function SettingsPage() {
                   </div>
                   <ToggleSwitch
                     checked={memberAlert}
-                    onChange={setMemberAlert}
+                    onChange={(v) =>
+                      saveNotifyPref('member', 'notifyMember', v)
+                    }
                   />
                 </div>
                 <div className="flex items-center gap-3 py-3 last:pb-0">
@@ -232,7 +269,9 @@ export default function SettingsPage() {
                   </div>
                   <ToggleSwitch
                     checked={settlementAlert}
-                    onChange={setSettlementAlert}
+                    onChange={(v) =>
+                      saveNotifyPref('settlement', 'notifySettlement', v)
+                    }
                   />
                 </div>
               </div>

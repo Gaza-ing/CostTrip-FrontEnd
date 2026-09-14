@@ -15,6 +15,7 @@ import {
   CalendarDays,
   Bell,
   CheckCheck,
+  X,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -168,6 +169,30 @@ export default function NotificationsPage() {
     markReadMut.mutate(id);
   }
 
+  /** 알림 유형에 맞는 이동 경로 (tripId 기반). */
+  function destForNotification(n: Notification): string {
+    switch (n.type) {
+      case 'budget_warning':
+      case 'budget_exceeded':
+      case 'category_warning':
+      case 'category_exceeded':
+      case 'pace_warning':
+        return `/trip/${n.tripId}/budget`;
+      case 'settlement':
+        return `/trip/${n.tripId}/settlement`;
+      case 'member_expense':
+        return `/trip/${n.tripId}/expense`;
+      default:
+        return `/trip/${n.tripId}`;
+    }
+  }
+
+  /** 비초대 알림 클릭 → 읽음 처리 후 관련 화면으로 이동. */
+  function handleOpenNotification(n: Notification) {
+    if (!n.isRead) markRead(n.id);
+    router.push(destForNotification(n));
+  }
+
   useHeaderAction(
     <HeaderActionButton variant="ghost" onClick={markAllRead}>
       <CheckCheck size={16} />
@@ -253,10 +278,17 @@ export default function NotificationsPage() {
                 {group.items.map((n) => (
                   <Card
                     key={n.id}
+                    onClick={
+                      n.type === 'invite'
+                        ? undefined
+                        : () => handleOpenNotification(n)
+                    }
                     className={cn(
                       getLevelBorderColor(n.level),
                       n.isRead && 'opacity-75',
                       !n.isRead && 'bg-brand-tint',
+                      n.type !== 'invite' &&
+                        'cursor-pointer hover:shadow-base transition-shadow',
                     )}
                   >
                     <div className="flex items-start gap-3">
@@ -307,7 +339,10 @@ export default function NotificationsPage() {
                           !n.isRead && (
                             <div className="mt-3">
                               <button
-                                onClick={() => markRead(n.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  markRead(n.id);
+                                }}
                                 className="rounded-pill border border-surface-line px-4 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-bg-alt transition-colors"
                               >
                                 읽음 처리
@@ -317,15 +352,31 @@ export default function NotificationsPage() {
                         )}
                       </div>
 
-                      {/* 시각 + 읽음 배지 */}
+                      {/* 시각 + 읽음 배지 + 삭제 */}
                       <div className="shrink-0 text-right">
-                        <span className="text-xs text-ink-3">
-                          {new Date(n.triggeredAt).toLocaleTimeString('ko-KR', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            hour12: false,
-                          })}
-                        </span>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <span className="text-xs text-ink-3">
+                            {new Date(n.triggeredAt).toLocaleTimeString(
+                              'ko-KR',
+                              {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: false,
+                              },
+                            )}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteNotifMut.mutate(n.id);
+                            }}
+                            className="flex h-6 w-6 items-center justify-center rounded-xs text-ink-3 hover:bg-surface-bg-alt hover:text-danger-text transition-colors"
+                            aria-label="알림 삭제"
+                            title="알림 삭제"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
                         <div className="mt-2">
                           {n.isRead ? (
                             <Badge>읽음</Badge>

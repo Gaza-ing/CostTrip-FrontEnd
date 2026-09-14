@@ -9,6 +9,9 @@ export interface User {
   displayName: string;
   photoUrl: string | null;
   avatarColor: string | null;
+  notifyBudget: boolean;
+  notifyMember: boolean;
+  notifySettlement: boolean;
   defaultCurrencyCode: string;
   locale: string;
 }
