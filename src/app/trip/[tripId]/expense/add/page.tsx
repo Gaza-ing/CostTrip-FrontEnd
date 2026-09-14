@@ -50,6 +50,9 @@ export default function ExpenseAddPage() {
       : 0;
 
   function handleSave() {
+    // 이미 저장 요청이 진행 중이면 중복 제출 방지
+    if (createExpenseMut.isPending) return;
+
     const newErrors: { amount?: string; title?: string } = {};
     if (parsedAmount <= 0) newErrors.amount = '금액을 입력해주세요';
     if (!title.trim()) newErrors.title = '내용을 입력해주세요';
@@ -346,9 +349,10 @@ export default function ExpenseAddPage() {
       <button
         type="button"
         onClick={handleSave}
-        className="w-full h-12 rounded-sm bg-brand text-base font-semibold text-on-brand hover:bg-brand-dark transition-colors"
+        disabled={createExpenseMut.isPending}
+        className="w-full h-12 rounded-sm bg-brand text-base font-semibold text-on-brand hover:bg-brand-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-brand"
       >
-        저장
+        {createExpenseMut.isPending ? '저장 중...' : '저장'}
       </button>
     </div>
   );

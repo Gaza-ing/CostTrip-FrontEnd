@@ -13,9 +13,11 @@ import {
   useUpdateMemberRole,
   useRemoveMember,
   useCreateInvite,
+  useInviteByEmail,
 } from '@/hooks/use-members';
 import { toast } from '@/stores/toast-store';
 import { Avatar } from '@/components/ui/Avatar';
+import { useMyProfile } from '@/hooks/use-my-profile';
 import { Plus, Copy, Link2 } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
@@ -27,6 +29,7 @@ export default function MembersPage() {
 
   // 서버 데이터
   const { data: members = [], isLoading } = useMembers(tripId);
+  const { userId: myUserId, avatarColor: myColor } = useMyProfile();
   const addVirtual = useAddVirtualMember(tripId);
   const updateRole = useUpdateMemberRole(tripId);
   const removeMemberMut = useRemoveMember(tripId);
@@ -36,8 +39,12 @@ export default function MembersPage() {
   const [showAddVirtual, setShowAddVirtual] = useState(false);
   const [virtualName, setVirtualName] = useState('');
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteTab, setInviteTab] = useState<'link' | 'code'>('link');
+  const [inviteTab, setInviteTab] = useState<'link' | 'code' | 'email'>('link');
   const [invite, setInvite] = useState<Invite | null>(null);
+  // 이메일 초대 폼
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<'editor' | 'viewer'>('editor');
+  const inviteByEmailMut = useInviteByEmail(tripId);
 
   // 통계
   const totalMembers = members.length;
@@ -79,6 +86,32 @@ export default function MembersPage() {
     if (!inviteLink) return;
     navigator.clipboard.writeText(inviteLink);
     toast.success('초대 링크가 복사되었습니다');
+  }
+
+  function handleEmailInvite() {
+    const email = inviteEmail.trim();
+    if (!email) {
+      toast.error('이메일을 입력해 주세요');
+      return;
+    }
+    inviteByEmailMut.mutate(
+      { email, role: inviteRole },
+      {
+        onSuccess: (res) => {
+          if (res.status === 'invited') {
+            toast.success(res.message);
+            setInviteEmail('');
+          } else if (res.status === 'already_member') {
+            toast.info(res.message);
+          } else {
+            // not_registered → 링크/코드 공유 안내
+            toast.info(res.message);
+            setInviteTab('link');
+          }
+        },
+        onError: () => toast.error('초대에 실패했습니다'),
+      },
+    );
   }
 
   function handleRoleChange(memberId: string, newRole: 'editor' | 'viewer') {
@@ -171,7 +204,17 @@ export default function MembersPage() {
                   className="grid grid-cols-[1fr_80px_120px_100px] gap-2 items-center"
                 >
                   <div className="flex items-center gap-2.5">
-                    <Avatar name={m.displayName} colorSeed={m.id} size={36} />
+                    <Avatar
+                      name={m.displayName}
+                      colorSeed={m.id}
+                      color={
+                        m.avatarColor ??
+                        (myUserId && m.userId === myUserId
+                          ? myColor
+                          : undefined)
+                      }
+                      size={36}
+                    />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="text-sm font-medium text-ink truncate">
@@ -378,105 +421,139 @@ export default function MembersPage() {
           <div>
             <p className="text-xs font-medium text-ink-3 mb-2">초대 방법</p>
             <div className="flex w-full items-center gap-0.5 rounded-pill bg-surface-bg-alt p-1">
-              <button
-                onClick={() => setInviteTab('link')}
-                className={cn(
-                  'flex-1 rounded-pill py-2 text-[13px] font-bold tracking-tight transition-all',
-                  inviteTab === 'link'
-                    ? 'bg-surface-card text-brand shadow-sm'
-                    : 'text-ink-2',
-                )}
-              >
-                링크
-              </button>
-              <button
-                onClick={() => setInviteTab('code')}
-                className={cn(
-                  'flex-1 rounded-pill py-2 text-[13px] font-bold tracking-tight transition-all',
-                  inviteTab === 'code'
-                    ? 'bg-surface-card text-brand shadow-sm'
-                    : 'text-ink-2',
-                )}
-              >
-                코드
-              </button>
-              <button
-                disabled
-                className="flex-1 rounded-pill py-2 text-[13px] font-bold tracking-tight text-ink-2 opacity-45 cursor-not-allowed"
-              >
-                이메일
-              </button>
+              {(['link', 'code', 'email'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setInviteTab(tab)}
+                  className={cn(
+                    'flex-1 rounded-pill py-2 text-[13px] font-bold tracking-tight transition-all',
+                    inviteTab === tab
+                      ? 'bg-surface-card text-brand shadow-sm'
+                      : 'text-ink-2',
+                  )}
+                >
+                  {tab === 'link' ? '링크' : tab === 'code' ? '코드' : '이메일'}
+                </button>
+              ))}
             </div>
-            <p className="mt-1.5 text-[11px] text-ink-3">
-              이메일·QR 초대는{' '}
-              <span className="rounded-pill border border-dashed border-surface-line-strong px-2 py-0.5 text-[10px]">
-                예정
-              </span>
-            </p>
           </div>
 
           {/* 초대 링크 */}
-          <div>
-            <p className="text-xs font-medium text-ink-3 mb-2">초대 링크</p>
-            <div className="flex gap-2">
-              <input
-                readOnly
-                value={inviteLink}
-                className="h-10 flex-1 min-w-0 rounded-sm border border-surface-line bg-surface-card px-3 text-sm text-ink"
-              />
-              <button
-                onClick={handleCopyLink}
-                className="h-10 shrink-0 rounded-sm border border-surface-line bg-surface-card px-4 text-sm font-medium text-ink hover:bg-surface-bg-alt transition-colors"
-              >
-                복사
-              </button>
+          {inviteTab === 'link' && (
+            <div>
+              <p className="text-xs font-medium text-ink-3 mb-2">초대 링크</p>
+              <div className="flex gap-2">
+                <input
+                  readOnly
+                  value={inviteLink}
+                  className="h-10 flex-1 min-w-0 rounded-sm border border-surface-line bg-surface-card px-3 text-sm text-ink"
+                />
+                <button
+                  onClick={handleCopyLink}
+                  className="h-10 shrink-0 rounded-sm border border-surface-line bg-surface-card px-4 text-sm font-medium text-ink hover:bg-surface-bg-alt transition-colors"
+                >
+                  복사
+                </button>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* 이메일 초대 폼 */}
+          {inviteTab === 'email' && (
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs font-medium text-ink-3 mb-2">
+                  초대할 이메일
+                </p>
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleEmailInvite();
+                  }}
+                  placeholder="member@example.com"
+                  className="h-10 w-full rounded-sm border border-surface-line bg-surface-card px-3 text-sm text-ink placeholder:text-ink-3 focus:outline-none focus:ring-2 focus:ring-brand"
+                />
+                <p className="mt-1.5 text-[11px] text-ink-3">
+                  이미 가입한 사용자면 앱 내 알림으로 초대가 전달돼요.
+                  미가입자는 링크·코드를 공유해 주세요.
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-ink-3 mb-2">기본 권한</p>
+                <select
+                  value={inviteRole}
+                  onChange={(e) =>
+                    setInviteRole(e.target.value as 'editor' | 'viewer')
+                  }
+                  className="h-10 w-full rounded-sm border border-surface-line bg-surface-card px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
+                >
+                  <option value="editor">editor (지출 편집 가능)</option>
+                  <option value="viewer">viewer (조회만)</option>
+                </select>
+              </div>
+              <Button
+                fullWidth
+                size="lg"
+                onClick={handleEmailInvite}
+                disabled={inviteByEmailMut.isPending}
+              >
+                {inviteByEmailMut.isPending ? '초대 중...' : '초대 보내기'}
+              </Button>
+            </div>
+          )}
 
           {/* 초대 코드 카드 (연한 블루톤) */}
-          <div className="rounded-sm border border-brand-soft bg-brand-tint p-4">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-bold text-ink-2">초대 코드</span>
-              <span className="rounded-pill border border-brand bg-brand-soft px-2.5 py-0.5 text-[11px] font-semibold text-brand">
-                7일 후 만료
-              </span>
+          {inviteTab === 'code' && (
+            <div className="rounded-sm border border-brand-soft bg-brand-tint p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold text-ink-2">초대 코드</span>
+                <span className="rounded-pill border border-brand bg-brand-soft px-2.5 py-0.5 text-[11px] font-semibold text-brand">
+                  7일 후 만료
+                </span>
+              </div>
+              <div className="py-3 text-center">
+                <span className="text-[28px] font-extrabold tracking-[6px] text-brand-dark">
+                  {inviteCode}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-ink-3">
+                  받은 사람이 앱에서 입력해 합류해요
+                </span>
+                <button
+                  onClick={handleCopyCode}
+                  className="rounded-sm border border-surface-line bg-surface-card px-3 py-1.5 text-xs font-medium text-ink hover:bg-surface-bg-alt transition-colors"
+                >
+                  재발급
+                </button>
+              </div>
             </div>
-            <div className="py-3 text-center">
-              <span className="text-[28px] font-extrabold tracking-[6px] text-brand-dark">
-                {inviteCode}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-ink-3">
-                받은 사람이 앱에서 입력해 합류해요
-              </span>
-              <button
-                onClick={handleCopyCode}
-                className="rounded-sm border border-surface-line bg-surface-card px-3 py-1.5 text-xs font-medium text-ink hover:bg-surface-bg-alt transition-colors"
-              >
-                재발급
-              </button>
-            </div>
-          </div>
+          )}
 
-          {/* 기본 권한 */}
-          <div>
-            <p className="text-xs font-medium text-ink-3 mb-2">기본 권한</p>
-            <select className="h-10 w-full rounded-sm border border-surface-line bg-surface-card px-3 pr-8 text-sm text-ink appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23929AAC%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[right_12px_center] bg-no-repeat focus:outline-none focus:ring-2 focus:ring-brand">
-              <option>editor (지출 편집 가능)</option>
-              <option>viewer (조회만)</option>
-            </select>
-          </div>
+          {/* 링크/코드 공용: 기본 권한 + 안내 + CTA */}
+          {inviteTab !== 'email' && (
+            <>
+              <div>
+                <p className="text-xs font-medium text-ink-3 mb-2">기본 권한</p>
+                <select className="h-10 w-full rounded-sm border border-surface-line bg-surface-card px-3 pr-8 text-sm text-ink appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23929AAC%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[right_12px_center] bg-no-repeat focus:outline-none focus:ring-2 focus:ring-brand">
+                  <option>editor (지출 편집 가능)</option>
+                  <option>viewer (조회만)</option>
+                </select>
+              </div>
 
-          <p className="text-[11px] text-ink-3 leading-relaxed">
-            재발급 시 이전 링크·코드는 무효화되고, 코드 입력에는 시도 제한이
-            적용돼요.
-          </p>
+              <p className="text-[11px] text-ink-3 leading-relaxed">
+                재발급 시 이전 링크·코드는 무효화되고, 코드 입력에는 시도 제한이
+                적용돼요.
+              </p>
 
-          {/* CTA */}
-          <Button fullWidth size="lg" onClick={handleCopyLink}>
-            링크 공유
-          </Button>
+              {/* CTA */}
+              <Button fullWidth size="lg" onClick={handleCopyLink}>
+                링크 공유
+              </Button>
+            </>
+          )}
           <Button
             variant="secondary"
             fullWidth

@@ -5,6 +5,10 @@ export interface UserSyncInput {
   email: string;
   displayName: string;
   photoUrl?: string | null;
+  avatarColor?: string | null;
+  notifyBudget?: boolean;
+  notifyMember?: boolean;
+  notifySettlement?: boolean;
 }
 
 /**

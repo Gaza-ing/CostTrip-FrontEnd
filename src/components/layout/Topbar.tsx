@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/app-store';
+import { useNotifications } from '@/hooks/use-notifications';
 import { Bell, PanelLeftOpen, Plus, Search } from 'lucide-react';
 import Link from 'next/link';
 
@@ -24,6 +25,8 @@ export function Topbar({
   action,
 }: TopbarProps) {
   const { sidebarOpen, toggleSidebar } = useAppStore();
+  const { data: notifications } = useNotifications();
+  const unreadCount = notifications?.filter((n) => !n.isRead).length ?? 0;
 
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-surface-line bg-surface-card px-6">
@@ -85,10 +88,15 @@ export function Topbar({
         {/* 알림 */}
         <Link
           href="/notifications"
-          className="flex h-9 w-9 items-center justify-center rounded-pill border border-surface-line text-warn hover:bg-surface-bg-alt transition-colors"
-          aria-label="알림"
+          className="relative flex h-9 w-9 items-center justify-center rounded-pill border border-surface-line text-warn hover:bg-surface-bg-alt transition-colors"
+          aria-label={unreadCount > 0 ? `알림 ${unreadCount}건` : '알림'}
         >
           <Bell size={16} />
+          {unreadCount > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
         </Link>
 
         {/* 여행 생성 */}

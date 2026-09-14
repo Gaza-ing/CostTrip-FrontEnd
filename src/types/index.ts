@@ -8,6 +8,10 @@ export interface User {
   email: string;
   displayName: string;
   photoUrl: string | null;
+  avatarColor: string | null;
+  notifyBudget: boolean;
+  notifyMember: boolean;
+  notifySettlement: boolean;
   defaultCurrencyCode: string;
   locale: string;
 }
@@ -71,6 +75,7 @@ export interface Member {
   role: 'owner' | 'editor' | 'viewer';
   inviteStatus: 'invited' | 'accepted' | 'declined' | 'left';
   joinedAt: string | null;
+  avatarColor: string | null; // 연결된 계정의 프로필 색(있으면)
 }
 
 export interface Invite {

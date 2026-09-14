@@ -54,3 +54,32 @@ export async function acceptInvite(input: {
     input,
   );
 }
+
+export interface EmailInviteResult {
+  /** 'invited' | 'not_registered' | 'already_member' */
+  status: string;
+  message: string;
+  member: Member | null;
+}
+
+/** 이메일로 특정인 초대. 가입자면 멤버(invited) 추가 + 알림 발송. 소유자만. */
+export function inviteByEmail(
+  tripId: string,
+  input: { email: string; role?: 'editor' | 'viewer' },
+): Promise<EmailInviteResult> {
+  return apiClient.post<EmailInviteResult>(`/trips/${tripId}/invite/email`, {
+    email: input.email,
+    role: input.role ?? 'editor',
+  });
+}
+
+/** 이메일 초대(알림)에 응답. 내 invited 멤버를 accepted/declined로 전환. */
+export function respondMembershipInvite(
+  tripId: string,
+  action: 'accept' | 'decline',
+): Promise<{ status: string; tripId: string }> {
+  return apiClient.post<{ status: string; tripId: string }>(
+    `/trips/${tripId}/invite/respond`,
+    { action },
+  );
+}

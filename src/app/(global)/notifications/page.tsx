@@ -15,13 +15,18 @@ import {
   CalendarDays,
   Bell,
   CheckCheck,
+  X,
   type LucideIcon,
 } from 'lucide-react';
 import {
   useNotifications,
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
+  useDeleteNotification,
 } from '@/hooks/use-notifications';
+import { useRespondMembershipInvite } from '@/hooks/use-members';
+import { toast } from '@/stores/toast-store';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { Notification, NotificationType } from '@/types';
 
@@ -120,10 +125,33 @@ function getLevelBorderColor(level: string) {
 }
 
 export default function NotificationsPage() {
+  const router = useRouter();
   const { data: notifications = [], isLoading } = useNotifications();
   const markReadMut = useMarkNotificationRead();
   const markAllReadMut = useMarkAllNotificationsRead();
+  const deleteNotifMut = useDeleteNotification();
+  const respondInviteMut = useRespondMembershipInvite();
   const [filter, setFilter] = useState<FilterPreset>('all');
+
+  function handleInviteRespond(n: Notification, action: 'accept' | 'decline') {
+    if (respondInviteMut.isPending) return;
+    respondInviteMut.mutate(
+      { tripId: n.tripId, action },
+      {
+        onSuccess: (res) => {
+          // 처리한 초대 알림은 목록에서 제거
+          deleteNotifMut.mutate(n.id);
+          if (res.status === 'accepted') {
+            toast.success('여행에 합류했어요');
+            router.push(`/trip/${n.tripId}`);
+          } else {
+            toast.info('초대를 거절했어요');
+          }
+        },
+        onError: () => toast.error('처리에 실패했어요'),
+      },
+    );
+  }
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
   const budgetWarningCount = notifications.filter(
@@ -139,6 +167,30 @@ export default function NotificationsPage() {
 
   function markRead(id: string) {
     markReadMut.mutate(id);
+  }
+
+  /** 알림 유형에 맞는 이동 경로 (tripId 기반). */
+  function destForNotification(n: Notification): string {
+    switch (n.type) {
+      case 'budget_warning':
+      case 'budget_exceeded':
+      case 'category_warning':
+      case 'category_exceeded':
+      case 'pace_warning':
+        return `/trip/${n.tripId}/budget`;
+      case 'settlement':
+        return `/trip/${n.tripId}/settlement`;
+      case 'member_expense':
+        return `/trip/${n.tripId}/expense`;
+      default:
+        return `/trip/${n.tripId}`;
+    }
+  }
+
+  /** 비초대 알림 클릭 → 읽음 처리 후 관련 화면으로 이동. */
+  function handleOpenNotification(n: Notification) {
+    if (!n.isRead) markRead(n.id);
+    router.push(destForNotification(n));
   }
 
   useHeaderAction(
@@ -226,10 +278,17 @@ export default function NotificationsPage() {
                 {group.items.map((n) => (
                   <Card
                     key={n.id}
+                    onClick={
+                      n.type === 'invite'
+                        ? undefined
+                        : () => handleOpenNotification(n)
+                    }
                     className={cn(
                       getLevelBorderColor(n.level),
                       n.isRead && 'opacity-75',
                       !n.isRead && 'bg-brand-tint',
+                      n.type !== 'invite' &&
+                        'cursor-pointer hover:shadow-base transition-shadow',
                     )}
                   >
                     <div className="flex items-start gap-3">
@@ -258,28 +317,66 @@ export default function NotificationsPage() {
                           {n.body}
                         </p>
 
-                        {/* 읽음 처리 버튼 (안읽은 것만) */}
-                        {!n.isRead && (
-                          <div className="mt-3">
+                        {/* 초대 알림: 수락/거절 */}
+                        {n.type === 'invite' ? (
+                          <div className="mt-3 flex items-center gap-2">
                             <button
-                              onClick={() => markRead(n.id)}
-                              className="rounded-pill border border-surface-line px-4 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-bg-alt transition-colors"
+                              onClick={() => handleInviteRespond(n, 'accept')}
+                              disabled={respondInviteMut.isPending}
+                              className="rounded-pill bg-brand px-4 py-1.5 text-xs font-semibold text-on-brand hover:bg-brand-dark transition-colors disabled:opacity-50"
                             >
-                              읽음 처리
+                              수락하고 합류
+                            </button>
+                            <button
+                              onClick={() => handleInviteRespond(n, 'decline')}
+                              disabled={respondInviteMut.isPending}
+                              className="rounded-pill border border-surface-line px-4 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-bg-alt transition-colors disabled:opacity-50"
+                            >
+                              거절
                             </button>
                           </div>
+                        ) : (
+                          !n.isRead && (
+                            <div className="mt-3">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  markRead(n.id);
+                                }}
+                                className="rounded-pill border border-surface-line px-4 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-bg-alt transition-colors"
+                              >
+                                읽음 처리
+                              </button>
+                            </div>
+                          )
                         )}
                       </div>
 
-                      {/* 시각 + 읽음 배지 */}
+                      {/* 시각 + 읽음 배지 + 삭제 */}
                       <div className="shrink-0 text-right">
-                        <span className="text-xs text-ink-3">
-                          {new Date(n.triggeredAt).toLocaleTimeString('ko-KR', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            hour12: false,
-                          })}
-                        </span>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <span className="text-xs text-ink-3">
+                            {new Date(n.triggeredAt).toLocaleTimeString(
+                              'ko-KR',
+                              {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: false,
+                              },
+                            )}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteNotifMut.mutate(n.id);
+                            }}
+                            className="flex h-6 w-6 items-center justify-center rounded-xs text-ink-3 hover:bg-surface-bg-alt hover:text-danger-text transition-colors"
+                            aria-label="알림 삭제"
+                            title="알림 삭제"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
                         <div className="mt-2">
                           {n.isRead ? (
                             <Badge>읽음</Badge>
