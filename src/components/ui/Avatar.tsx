@@ -43,6 +43,11 @@ interface AvatarProps {
    * 멤버는 안정적인 id를 넘기는 것을 권장(이름 변경/중복에도 색 유지).
    */
   colorSeed?: string;
+  /**
+   * 명시적 배경색(hex). 지정하면 colorSeed/name 해시보다 우선한다.
+   * 사용자가 프로필에서 직접 고른 색 등에 사용.
+   */
+  color?: string;
   /** 겹침 표시 등을 위한 테두리 클래스 추가용 */
   className?: string;
   title?: string;
@@ -56,11 +61,12 @@ export function Avatar({
   name,
   size = 36,
   colorSeed,
+  color,
   className,
   title,
 }: AvatarProps) {
   const initial = initialOf(name);
-  const bg = avatarColor(colorSeed ?? name ?? '');
+  const bg = color ?? avatarColor(colorSeed ?? name ?? '');
   // 지름에 비례한 폰트 크기 (대략 42%)
   const fontSize = Math.max(10, Math.round(size * 0.42));
 

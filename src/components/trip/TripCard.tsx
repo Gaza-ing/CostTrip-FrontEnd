@@ -7,6 +7,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { formatKRW } from '@/lib/utils';
 import { useDeleteTrip } from '@/hooks/use-trips';
 import { useMembers } from '@/hooks/use-members';
+import { useMyProfile } from '@/hooks/use-my-profile';
 import { getTripPhase, tripPhaseLabel } from '@/lib/trip-status';
 import { toast } from '@/stores/toast-store';
 import type { Trip } from '@/types';
@@ -46,6 +47,7 @@ export function TripCard({ trip }: TripCardProps) {
 
   // 실제 멤버로 이니셜 아바타 표시. 로딩/미조회 시 headcount로 폴백.
   const { data: members } = useMembers(trip.id);
+  const { userId: myUserId, avatarColor: myColor } = useMyProfile();
   const shownMembers = members?.slice(0, MAX_AVATARS) ?? [];
   // 멤버 목록이 있을 때만 초과 인원(+N) 계산
   const extraCount = members
@@ -114,16 +116,20 @@ export function TripCard({ trip }: TripCardProps) {
             {tripPhaseLabel(phase)}
           </Badge>
           <div className="flex -space-x-1.5">
-            {shownMembers.map((m) => (
-              <Avatar
-                key={m.id}
-                name={m.displayName}
-                colorSeed={m.id}
-                size={24}
-                className="border-2 border-surface-card text-[10px]"
-                title={m.displayName}
-              />
-            ))}
+            {shownMembers.map((m) => {
+              const isMe = !!myUserId && m.userId === myUserId;
+              return (
+                <Avatar
+                  key={m.id}
+                  name={m.displayName}
+                  colorSeed={m.id}
+                  color={isMe ? myColor : undefined}
+                  size={24}
+                  className="border-2 border-surface-card text-[10px]"
+                  title={m.displayName}
+                />
+              );
+            })}
             {/* 멤버 목록 미도착 시 headcount 기반 폴백(색상 원형만) */}
             {fallbackCount > 0 &&
               Array.from({ length: fallbackCount }).map((_, i) => (

@@ -16,6 +16,7 @@ import {
 } from '@/hooks/use-members';
 import { toast } from '@/stores/toast-store';
 import { Avatar } from '@/components/ui/Avatar';
+import { useMyProfile } from '@/hooks/use-my-profile';
 import { Plus, Copy, Link2 } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
@@ -27,6 +28,7 @@ export default function MembersPage() {
 
   // 서버 데이터
   const { data: members = [], isLoading } = useMembers(tripId);
+  const { userId: myUserId, avatarColor: myColor } = useMyProfile();
   const addVirtual = useAddVirtualMember(tripId);
   const updateRole = useUpdateMemberRole(tripId);
   const removeMemberMut = useRemoveMember(tripId);
@@ -171,7 +173,14 @@ export default function MembersPage() {
                   className="grid grid-cols-[1fr_80px_120px_100px] gap-2 items-center"
                 >
                   <div className="flex items-center gap-2.5">
-                    <Avatar name={m.displayName} colorSeed={m.id} size={36} />
+                    <Avatar
+                      name={m.displayName}
+                      colorSeed={m.id}
+                      color={
+                        myUserId && m.userId === myUserId ? myColor : undefined
+                      }
+                      size={36}
+                    />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="text-sm font-medium text-ink truncate">

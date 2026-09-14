@@ -8,6 +8,7 @@ import { HeaderActionButton } from '@/components/layout';
 import { useHeaderAction } from '@/hooks/use-header-action';
 import { formatKRW, cn } from '@/lib/utils';
 import { useMembers } from '@/hooks/use-members';
+import { useMyProfile } from '@/hooks/use-my-profile';
 import { useSettlement, useToggleTransfer } from '@/hooks/use-settlement';
 import { toast } from '@/stores/toast-store';
 import { Check, Share2, User, Wallet, CircleDollarSign } from 'lucide-react';
@@ -19,6 +20,7 @@ export default function SettlementPage() {
   const tripId = params.tripId as string;
 
   const { data: members = [] } = useMembers(tripId);
+  const { userId: myUserId, avatarColor: myColor } = useMyProfile();
   const { data: settlement, isLoading } = useSettlement(tripId);
   const toggleTransferMut = useToggleTransfer(tripId);
 
@@ -34,6 +36,13 @@ export default function SettlementPage() {
       members.find((m) => m.id === memberId)?.displayName ??
       '알 수 없음'
     );
+  }
+
+  // 해당 멤버가 '나'면 내가 고른 프로필 색을 반환(아니면 undefined → 해시색)
+  function myColorFor(memberId: string): string | undefined {
+    if (!myUserId) return undefined;
+    const m = members.find((mm) => mm.id === memberId);
+    return m && m.userId === myUserId ? myColor : undefined;
   }
 
   // 합계 (표시용)
@@ -190,6 +199,7 @@ export default function SettlementPage() {
                   <Avatar
                     name={b.displayName}
                     colorSeed={b.memberId}
+                    color={myColorFor(b.memberId)}
                     size={32}
                   />
                   <span className="text-sm font-medium text-ink">
@@ -280,6 +290,7 @@ export default function SettlementPage() {
                         <Avatar
                           name={fromName}
                           colorSeed={t.fromMemberId}
+                          color={myColorFor(t.fromMemberId)}
                           size={32}
                         />
                         <span className="text-sm font-medium text-ink">
@@ -293,6 +304,7 @@ export default function SettlementPage() {
                         <Avatar
                           name={toName}
                           colorSeed={t.toMemberId}
+                          color={myColorFor(t.toMemberId)}
                           size={32}
                         />
                         <span className="text-sm font-medium text-ink">

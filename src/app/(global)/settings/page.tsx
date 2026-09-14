@@ -9,16 +9,35 @@ import {
   Users,
   CreditCard,
   FileText,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Avatar } from '@/components/ui/Avatar';
+import { ProfileEditModal } from '@/components/settings/ProfileEditModal';
 import { cn } from '@/lib/utils';
-import { useMe } from '@/hooks/use-auth-user';
 import { useAuth } from '@/lib/auth-context';
+import { useMyProfile } from '@/hooks/use-my-profile';
+import { supabase } from '@/lib/supabase';
+import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState, type ComponentType } from 'react';
+
+type SectionId = 'account' | 'sync' | 'notification' | 'currency' | 'data';
+
+const NAV_ITEMS: {
+  id: SectionId;
+  label: string;
+  icon: ComponentType<{ size?: number }>;
+}[] = [
+  { id: 'account', label: '계정', icon: User },
+  { id: 'sync', label: '동기화', icon: RefreshCw },
+  { id: 'notification', label: '알림', icon: Bell },
+  { id: 'currency', label: '통화', icon: CircleDollarSign },
+  { id: 'data', label: '데이터', icon: Upload },
+];
 
 interface ToggleSwitchProps {
   checked: boolean;
@@ -49,14 +68,46 @@ function ToggleSwitch({ checked, onChange }: ToggleSwitchProps) {
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { data: me } = useMe();
+  const { displayName, email, avatarColor } = useMyProfile();
   const { signOut } = useAuth();
+  const queryClient = useQueryClient();
+  const [profileOpen, setProfileOpen] = useState(false);
   const [budgetAlert, setBudgetAlert] = useState(true);
   const [memberAlert, setMemberAlert] = useState(true);
   const [settlementAlert, setSettlementAlert] = useState(false);
+  const [activeSection, setActiveSection] = useState<SectionId>('account');
 
-  const displayName = me?.displayName || '사용자';
-  const email = me?.email || '';
+  // nav 클릭 → 해당 섹션으로 스크롤
+  function scrollToSection(id: SectionId) {
+    setActiveSection(id);
+    document
+      .getElementById(`settings-${id}`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // 스크롤 위치에 따라 활성 섹션 하이라이트
+  useEffect(() => {
+    const sections = NAV_ITEMS.map((n) =>
+      document.getElementById(`settings-${n.id}`),
+    ).filter((el): el is HTMLElement => el !== null);
+    if (sections.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // 화면 상단에 가장 가깝게 보이는 섹션을 활성으로
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible[0]) {
+          const id = visible[0].target.id.replace('settings-', '') as SectionId;
+          setActiveSection(id);
+        }
+      },
+      { rootMargin: '-96px 0px -55% 0px', threshold: 0 },
+    );
+    sections.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
 
   async function handleSignOut() {
     await signOut();
@@ -69,44 +120,39 @@ export default function SettingsPage() {
         {/* 좌: 하위 탭 내비 */}
         <Card className="sticky top-20 hidden lg:block">
           <nav className="space-y-1">
-            <button className="w-full flex items-center gap-2 rounded-sm px-3 py-2.5 text-sm font-medium text-brand bg-brand-tint">
-              <User size={16} />
-              계정
-            </button>
-            <button className="w-full flex items-center gap-2 rounded-sm px-3 py-2.5 text-sm font-medium text-ink-2 hover:bg-surface-bg-alt transition-colors">
-              <RefreshCw size={16} />
-              동기화
-            </button>
-            <button className="w-full flex items-center gap-2 rounded-sm px-3 py-2.5 text-sm font-medium text-ink-2 hover:bg-surface-bg-alt transition-colors">
-              <Bell size={16} />
-              알림
-            </button>
-            <button className="w-full flex items-center gap-2 rounded-sm px-3 py-2.5 text-sm font-medium text-ink-2 hover:bg-surface-bg-alt transition-colors">
-              <CircleDollarSign size={16} />
-              통화
-            </button>
-            <button className="w-full flex items-center gap-2 rounded-sm px-3 py-2.5 text-sm font-medium text-ink-2 hover:bg-surface-bg-alt transition-colors">
-              <Upload size={16} />
-              데이터
-            </button>
+            {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => scrollToSection(id)}
+                aria-current={activeSection === id ? 'true' : undefined}
+                className={cn(
+                  'w-full flex items-center gap-2 rounded-sm px-3 py-2.5 text-sm font-medium transition-colors',
+                  activeSection === id
+                    ? 'text-brand bg-brand-tint'
+                    : 'text-ink-2 hover:bg-surface-bg-alt',
+                )}
+              >
+                <Icon size={16} />
+                {label}
+              </button>
+            ))}
           </nav>
         </Card>
 
         {/* 우: 설정 폼 */}
         <div className="space-y-6 min-w-0">
           {/* 계정 */}
-          <section>
+          <section id="settings-account" className="scroll-mt-24">
             <h2 className="text-[13px] font-bold text-ink-2 mb-3">계정</h2>
             <Card>
               <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand text-lg font-bold text-on-brand">
-                  {displayName.charAt(0)}
-                </div>
+                <Avatar name={displayName} color={avatarColor} size={56} />
                 <div className="flex-1 min-w-0">
                   <p className="text-base font-bold text-ink">{displayName}</p>
                   <p className="text-sm text-ink-3 truncate">{email}</p>
                 </div>
-                <Button variant="ghost" size="sm">
+                <Button size="sm" onClick={() => setProfileOpen(true)}>
                   프로필 수정
                 </Button>
               </div>
@@ -114,7 +160,7 @@ export default function SettingsPage() {
           </section>
 
           {/* 동기화 */}
-          <section>
+          <section id="settings-sync" className="scroll-mt-24">
             <h2 className="text-[13px] font-bold text-ink-2 mb-3">동기화</h2>
             <Card>
               <div className="flex items-center gap-3">
@@ -130,7 +176,11 @@ export default function SettingsPage() {
                     </Badge>
                   </p>
                 </div>
-                <Button variant="ghost" size="sm">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="border-brand-soft text-brand-dark hover:bg-brand-soft"
+                >
                   지금 강제 동기화
                 </Button>
               </div>
@@ -138,7 +188,7 @@ export default function SettingsPage() {
           </section>
 
           {/* 알림 */}
-          <section>
+          <section id="settings-notification" className="scroll-mt-24">
             <h2 className="text-[13px] font-bold text-ink-2 mb-3">알림</h2>
             <Card>
               <div className="divide-y divide-surface-line">
@@ -190,7 +240,7 @@ export default function SettingsPage() {
           </section>
 
           {/* 통화 */}
-          <section>
+          <section id="settings-currency" className="scroll-mt-24">
             <h2 className="text-[13px] font-bold text-ink-2 mb-3">통화</h2>
             <Card>
               <div className="flex items-end gap-4">
@@ -218,7 +268,7 @@ export default function SettingsPage() {
           </section>
 
           {/* 데이터 */}
-          <section>
+          <section id="settings-data" className="scroll-mt-24">
             <h2 className="text-[13px] font-bold text-ink-2 mb-3">데이터</h2>
             <Card>
               <div className="divide-y divide-surface-line">
@@ -236,12 +286,24 @@ export default function SettingsPage() {
                   </div>
                   <div className="flex gap-2">
                     <Link href="/settings/export">
-                      <Button variant="ghost" size="sm">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="border-transparent text-white hover:opacity-90"
+                        style={{ backgroundColor: '#1D6F42' }}
+                      >
+                        <FileSpreadsheet size={15} />
                         CSV
                       </Button>
                     </Link>
                     <Link href="/settings/export">
-                      <Button variant="ghost" size="sm">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="border-transparent text-white hover:opacity-90"
+                        style={{ backgroundColor: '#D93831' }}
+                      >
+                        <FileText size={15} />
                         PDF
                       </Button>
                     </Link>
@@ -277,6 +339,20 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* 프로필 수정 모달 */}
+      <ProfileEditModal
+        open={profileOpen}
+        onClose={() => setProfileOpen(false)}
+        initialName={displayName}
+        initialColor={avatarColor}
+        email={email}
+        onSaved={() => {
+          // 세션 metadata 갱신 반영 + me 캐시 무효화
+          void supabase.auth.refreshSession();
+          queryClient.invalidateQueries({ queryKey: ['me'] });
+        }}
+      />
     </div>
   );
 }
