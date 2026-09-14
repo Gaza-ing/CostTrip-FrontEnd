@@ -6,6 +6,8 @@ import {
   removeMember,
   createInvite,
   acceptInvite,
+  inviteByEmail,
+  respondMembershipInvite,
 } from '@/lib/api/members';
 
 /** 여행 멤버 목록 조회 */
@@ -75,6 +77,36 @@ export function useAcceptInvite() {
       acceptInvite(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trips'] });
+    },
+  });
+}
+
+/** 이메일로 멤버 초대 */
+export function useInviteByEmail(tripId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { email: string; role?: 'editor' | 'viewer' }) =>
+      inviteByEmail(tripId, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['members', tripId] });
+    },
+  });
+}
+
+/** 초대 알림에 응답(수락/거절) */
+export function useRespondMembershipInvite() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      tripId,
+      action,
+    }: {
+      tripId: string;
+      action: 'accept' | 'decline';
+    }) => respondMembershipInvite(tripId, action),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trips'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
 }

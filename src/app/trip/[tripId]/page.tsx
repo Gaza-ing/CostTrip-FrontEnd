@@ -40,7 +40,9 @@ export default function TripMainPage() {
 
   // 서버 데이터
   const { data: trip, isLoading: tripLoading } = useTrip(tripId);
-  const { data: members = [] } = useMembers(tripId);
+  const { data: allMembers = [] } = useMembers(tripId);
+  // 인원/아바타는 실제 합류(accepted)한 멤버만. invited(수락 대기)는 제외.
+  const members = allMembers.filter((m) => m.inviteStatus === 'accepted');
   const { data: expenses = [] } = useExpenses(tripId);
   const { data: budgetData, isLoading: budgetLoading } = useBudgets(tripId);
   const { data: days = [], isLoading: daysLoading } = useDays(
@@ -339,23 +341,32 @@ function MemberAvatars({
   members,
   tripId,
 }: {
-  members: { id: string; displayName: string; userId: string | null }[];
+  members: {
+    id: string;
+    displayName: string;
+    userId: string | null;
+    avatarColor: string | null;
+  }[];
   tripId: string;
 }) {
   const { userId: myUserId, avatarColor: myColor } = useMyProfile();
   return (
     <div className="flex items-center gap-3">
       <div className="flex -space-x-2">
-        {members.slice(0, 4).map((m) => (
-          <Avatar
-            key={m.id}
-            name={m.displayName}
-            colorSeed={m.id}
-            color={myUserId && m.userId === myUserId ? myColor : undefined}
-            size={32}
-            className="border-2 border-surface-card text-xs"
-          />
-        ))}
+        {members.slice(0, 4).map((m) => {
+          const isMe = !!myUserId && m.userId === myUserId;
+          const color = m.avatarColor ?? (isMe ? myColor : undefined);
+          return (
+            <Avatar
+              key={m.id}
+              name={m.displayName}
+              colorSeed={m.id}
+              color={color}
+              size={32}
+              className="border-2 border-surface-card text-xs"
+            />
+          );
+        })}
       </div>
       <Link
         href={`/trip/${tripId}/members`}

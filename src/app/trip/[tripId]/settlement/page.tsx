@@ -38,11 +38,12 @@ export default function SettlementPage() {
     );
   }
 
-  // 해당 멤버가 '나'면 내가 고른 프로필 색을 반환(아니면 undefined → 해시색)
+  // 아바타 색: 저장된 멤버 색 > (나면 내 색) > undefined(해시색)
   function myColorFor(memberId: string): string | undefined {
-    if (!myUserId) return undefined;
     const m = members.find((mm) => mm.id === memberId);
-    return m && m.userId === myUserId ? myColor : undefined;
+    if (m?.avatarColor) return m.avatarColor;
+    if (myUserId && m && m.userId === myUserId) return myColor;
+    return undefined;
   }
 
   // 합계 (표시용)

@@ -3,10 +3,13 @@
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
+import { Avatar } from '@/components/ui/Avatar';
 import { useCreateTrip } from '@/hooks/use-trips';
 import { useMe } from '@/hooks/use-auth-user';
+import { useMyProfile } from '@/hooks/use-my-profile';
 import { useAppStore } from '@/stores/app-store';
 import { toast } from '@/stores/toast-store';
+import { inviteByEmail } from '@/lib/api/members';
 import { formatKRW } from '@/lib/utils';
 import { Search, ChevronDown, Lightbulb, MapPin } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -31,6 +34,7 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
   const router = useRouter();
   const createTrip = useCreateTrip();
   const { data: me } = useMe();
+  const { avatarColor: myColor } = useMyProfile();
   const { setTripInfo, setTripDates } = useAppStore();
 
   const [form, setForm] = useState({
@@ -101,21 +105,49 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
         destination: form.destination,
         startDate: form.startDate,
         endDate: form.endDate,
-        headcount: form.headcount,
+        headcount: members.length,
         totalBudget: form.totalBudget,
         currencyCode: 'KRW',
         tripTimeZone: 'Asia/Seoul',
         status: 'planning',
       },
       {
-        onSuccess: (trip) => {
+        onSuccess: async (trip) => {
           // Store에 여행 정보 동기화
           setTripInfo({
             title: form.title || form.destination,
             destination: form.destination,
-            headcount: form.headcount,
+            headcount: members.length,
           });
           setTripDates(form.startDate, form.endDate);
+
+          // 소유자(me)를 제외한, 이메일로 추가된 멤버들에게 초대 발송
+          const invitees = members.filter(
+            (m) => m.role !== 'owner' && m.email.includes('@'),
+          );
+          if (invitees.length > 0) {
+            const results = await Promise.allSettled(
+              invitees.map((m) =>
+                inviteByEmail(trip.id, {
+                  email: m.email,
+                  role: m.role === 'viewer' ? 'viewer' : 'editor',
+                }),
+              ),
+            );
+            const invited = results.filter(
+              (r) => r.status === 'fulfilled' && r.value.status === 'invited',
+            ).length;
+            const notReg = results.filter(
+              (r) =>
+                r.status === 'fulfilled' && r.value.status === 'not_registered',
+            ).length;
+            if (invited > 0) toast.success(`${invited}명에게 초대를 보냈어요`);
+            if (notReg > 0)
+              toast.info(
+                `미가입자 ${notReg}명은 멤버 화면에서 링크·코드로 초대해 주세요`,
+              );
+          }
+
           onClose();
           toast.success('여행이 생성되었어요');
           router.push(`/trip/${trip.id}`);
@@ -259,18 +291,11 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
                 error={errors.endDate}
               />
               <Input
-                label="인원"
+                label="인원 (자동)"
                 type="number"
-                min={1}
-                max={50}
-                value={form.headcount.toString()}
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    headcount: parseInt(e.target.value) || 1,
-                  }))
-                }
-                hint={dayCount ? `${dayCount - 1}박${dayCount}일` : undefined}
+                value={members.length.toString()}
+                readOnly
+                hint="멤버를 초대하면 자동으로 늘어나요"
               />
             </div>
 
@@ -324,11 +349,12 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
                     className="flex items-center gap-3 border-b border-surface-line px-4 py-3 last:border-b-0"
                   >
                     {/* 아바타 */}
-                    <div
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-pill text-sm font-medium text-on-brand ${member.color}`}
-                    >
-                      {(member.id === 'me' ? ownerName : member.name).charAt(0)}
-                    </div>
+                    <Avatar
+                      name={member.id === 'me' ? ownerName : member.name}
+                      colorSeed={member.email || member.id}
+                      color={member.id === 'me' ? myColor : undefined}
+                      size={36}
+                    />
                     {/* 정보 */}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-ink truncate">

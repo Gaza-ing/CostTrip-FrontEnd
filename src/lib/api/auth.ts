@@ -5,6 +5,7 @@ export interface UserSyncInput {
   email: string;
   displayName: string;
   photoUrl?: string | null;
+  avatarColor?: string | null;
 }
 
 /**

@@ -5,10 +5,12 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
 import type { Session } from '@supabase/supabase-js';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { syncUser } from '@/lib/api/auth';
 
@@ -39,6 +41,9 @@ function displayNameFromSession(session: Session): string {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  // 직전에 로그인돼 있던 사용자 id (계정 전환 감지용)
+  const prevUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -47,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
       setSession(data.session);
+      prevUserIdRef.current = data.session?.user.id ?? null;
       setLoading(false);
     });
 
@@ -54,6 +60,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, newSession) => {
+      const newUserId = newSession?.user.id ?? null;
+      // 로그인 사용자가 바뀌었거나 로그아웃되면 이전 사용자 데이터 캐시를 비운다
+      if (prevUserIdRef.current !== newUserId) {
+        queryClient.clear();
+      }
+      prevUserIdRef.current = newUserId;
+
       setSession(newSession);
       setLoading(false);
 
@@ -78,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       active = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [queryClient]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -87,9 +100,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: !!session,
       signOut: async () => {
         await supabase.auth.signOut();
+        // 이전 사용자 데이터가 다음 로그인에 남지 않도록 캐시 비움
+        queryClient.clear();
       },
     }),
-    [session, loading],
+    [session, loading, queryClient],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

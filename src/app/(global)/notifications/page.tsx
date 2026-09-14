@@ -21,7 +21,11 @@ import {
   useNotifications,
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
+  useDeleteNotification,
 } from '@/hooks/use-notifications';
+import { useRespondMembershipInvite } from '@/hooks/use-members';
+import { toast } from '@/stores/toast-store';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { Notification, NotificationType } from '@/types';
 
@@ -120,10 +124,33 @@ function getLevelBorderColor(level: string) {
 }
 
 export default function NotificationsPage() {
+  const router = useRouter();
   const { data: notifications = [], isLoading } = useNotifications();
   const markReadMut = useMarkNotificationRead();
   const markAllReadMut = useMarkAllNotificationsRead();
+  const deleteNotifMut = useDeleteNotification();
+  const respondInviteMut = useRespondMembershipInvite();
   const [filter, setFilter] = useState<FilterPreset>('all');
+
+  function handleInviteRespond(n: Notification, action: 'accept' | 'decline') {
+    if (respondInviteMut.isPending) return;
+    respondInviteMut.mutate(
+      { tripId: n.tripId, action },
+      {
+        onSuccess: (res) => {
+          // 처리한 초대 알림은 목록에서 제거
+          deleteNotifMut.mutate(n.id);
+          if (res.status === 'accepted') {
+            toast.success('여행에 합류했어요');
+            router.push(`/trip/${n.tripId}`);
+          } else {
+            toast.info('초대를 거절했어요');
+          }
+        },
+        onError: () => toast.error('처리에 실패했어요'),
+      },
+    );
+  }
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
   const budgetWarningCount = notifications.filter(
@@ -258,16 +285,35 @@ export default function NotificationsPage() {
                           {n.body}
                         </p>
 
-                        {/* 읽음 처리 버튼 (안읽은 것만) */}
-                        {!n.isRead && (
-                          <div className="mt-3">
+                        {/* 초대 알림: 수락/거절 */}
+                        {n.type === 'invite' ? (
+                          <div className="mt-3 flex items-center gap-2">
                             <button
-                              onClick={() => markRead(n.id)}
-                              className="rounded-pill border border-surface-line px-4 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-bg-alt transition-colors"
+                              onClick={() => handleInviteRespond(n, 'accept')}
+                              disabled={respondInviteMut.isPending}
+                              className="rounded-pill bg-brand px-4 py-1.5 text-xs font-semibold text-on-brand hover:bg-brand-dark transition-colors disabled:opacity-50"
                             >
-                              읽음 처리
+                              수락하고 합류
+                            </button>
+                            <button
+                              onClick={() => handleInviteRespond(n, 'decline')}
+                              disabled={respondInviteMut.isPending}
+                              className="rounded-pill border border-surface-line px-4 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-bg-alt transition-colors disabled:opacity-50"
+                            >
+                              거절
                             </button>
                           </div>
+                        ) : (
+                          !n.isRead && (
+                            <div className="mt-3">
+                              <button
+                                onClick={() => markRead(n.id)}
+                                className="rounded-pill border border-surface-line px-4 py-1.5 text-xs font-medium text-ink-2 hover:bg-surface-bg-alt transition-colors"
+                              >
+                                읽음 처리
+                              </button>
+                            </div>
+                          )
                         )}
                       </div>
 

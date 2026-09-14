@@ -62,9 +62,14 @@ export function ProfileEditModal({
       });
       if (error) throw error;
 
-      // 백엔드 users 테이블에도 이름 반영 (실패해도 치명적이지 않음)
+      // 백엔드 users 테이블에도 이름·색 반영 (실패해도 치명적이지 않음)
       try {
-        await syncUser({ email, displayName: trimmed, photoUrl: null });
+        await syncUser({
+          email,
+          displayName: trimmed,
+          photoUrl: null,
+          avatarColor: color,
+        });
       } catch (err) {
         console.error('프로필 sync 실패:', err);
       }

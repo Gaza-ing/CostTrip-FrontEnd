@@ -348,9 +348,11 @@ export default function SettingsPage() {
         initialColor={avatarColor}
         email={email}
         onSaved={() => {
-          // 세션 metadata 갱신 반영 + me 캐시 무효화
+          // 세션 metadata 갱신 반영 + 색이 반영되는 캐시 모두 무효화
           void supabase.auth.refreshSession();
           queryClient.invalidateQueries({ queryKey: ['me'] });
+          // 멤버 아바타(홈카드/여행메인/멤버/정산)가 내 새 색을 다시 읽도록
+          queryClient.invalidateQueries({ queryKey: ['members'] });
         }}
       />
     </div>

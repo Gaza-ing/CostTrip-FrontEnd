@@ -19,3 +19,8 @@ export function markNotificationRead(
 export function markAllNotificationsRead(): Promise<{ message: string }> {
   return apiClient.post<{ message: string }>('/notifications/read-all');
 }
+
+/** 알림 삭제. */
+export function deleteNotification(notificationId: string): Promise<void> {
+  return apiClient.delete<void>(`/notifications/${notificationId}`);
+}
