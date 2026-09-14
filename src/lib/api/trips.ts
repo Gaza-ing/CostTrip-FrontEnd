@@ -21,6 +21,8 @@ interface BackendTrip {
   currencyCode: string;
   status: string;
   coverImageUrl: string | null;
+  budgetWarningThreshold: number;
+  budgetOverThreshold: number;
   createdAt: string;
 }
 
@@ -47,6 +49,8 @@ function normalizeTrip(t: BackendTrip): Trip {
     currencyCode: t.currencyCode,
     tripTimeZone: t.tripTimeZone,
     status: backendStatusToFront(t.status),
+    budgetWarningThreshold: t.budgetWarningThreshold ?? 80,
+    budgetOverThreshold: t.budgetOverThreshold ?? 100,
     createdAt: t.createdAt,
     updatedAt: t.createdAt, // 백엔드 응답에 updatedAt 없음
   };
@@ -66,7 +70,14 @@ export async function fetchTrip(tripId: string): Promise<Trip | undefined> {
 
 /** 여행 생성. */
 export async function createTrip(
-  data: Omit<Trip, 'id' | 'createdAt' | 'updatedAt'>,
+  data: Omit<
+    Trip,
+    | 'id'
+    | 'createdAt'
+    | 'updatedAt'
+    | 'budgetWarningThreshold'
+    | 'budgetOverThreshold'
+  >,
 ): Promise<Trip> {
   const created = await apiClient.post<BackendTrip>('/trips', {
     title: data.title,

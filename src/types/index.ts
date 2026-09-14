@@ -27,6 +27,8 @@ export interface Trip {
   currencyCode: string; // 현재 'KRW' 고정
   tripTimeZone: string; // e.g. 'Asia/Tokyo'
   status: 'planning' | 'in_progress' | 'completed';
+  budgetWarningThreshold: number;
+  budgetOverThreshold: number;
   createdAt: string;
   updatedAt: string;
 }

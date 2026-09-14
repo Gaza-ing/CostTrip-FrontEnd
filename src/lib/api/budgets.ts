@@ -71,7 +71,7 @@ export async function fetchBudgets(tripId: string): Promise<BudgetData> {
  */
 export async function saveBudgets(
   tripId: string,
-  data: BudgetData,
+  data: BudgetData & { warningThreshold?: number; overThreshold?: number },
 ): Promise<void> {
   const categories = await fetchBudgetCategories(tripId);
 
@@ -92,5 +92,7 @@ export async function saveBudgets(
   await apiClient.put<{ message: string }>(`/trips/${tripId}/budgets`, {
     totalBudget: data.totalBudget,
     categoryBudgets: categoryBudgetItems,
+    warningThreshold: data.warningThreshold,
+    overThreshold: data.overThreshold,
   });
 }
