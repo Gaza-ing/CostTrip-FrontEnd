@@ -21,6 +21,9 @@ import {
   useUpdatePlanItem,
   useDeletePlanItem,
 } from '@/hooks/use-plan';
+import { createPlanItem } from '@/lib/api/plan-items';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from '@/stores/toast-store';
 import { useMemo } from 'react';
 import {
   Plus,
@@ -52,6 +55,33 @@ import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import type { PlanItem } from '@/types';
 
+interface PlanForm {
+  title: string;
+  categoryId: string;
+  startTime: string;
+  endTime: string;
+  estimatedCost: number;
+  place: string;
+  memo: string;
+  lat: number | null;
+  lng: number | null;
+  // 숙소(stay)일 때 연속 숙박 일수(이 날 포함). 기본 1.
+  nights: number;
+}
+
+const EMPTY_FORM: PlanForm = {
+  title: '',
+  categoryId: 'tour',
+  startTime: '',
+  endTime: '',
+  estimatedCost: 0,
+  place: '',
+  memo: '',
+  lat: null,
+  lng: null,
+  nights: 1,
+};
+
 export default function DayPlanPage() {
   const params = useParams();
   const tripId = params.tripId as string;
@@ -71,6 +101,7 @@ export default function DayPlanPage() {
   const dayId = currentDay?.id;
   const dayDate = currentDay?.date || undefined;
 
+  const queryClient = useQueryClient();
   // 서버 일정 항목
   const { data: serverItems = [] } = usePlanItems(tripId, dayId);
   const createItemMut = useCreatePlanItem(tripId, dayId ?? '');
@@ -90,35 +121,18 @@ export default function DayPlanPage() {
     [serverItems],
   );
 
-  // 세션 좌표: 백엔드가 좌표를 저장하지 않으므로, 이번 세션 동안만
-  // itemId -> { lat, lng, placeName } 을 클라이언트 상태로 보관한다.
-  // (새로고침하면 사라짐 — 옵션 A)
-  const [sessionCoords, setSessionCoords] = useState<
-    Record<string, { lat: number; lng: number; placeName: string }>
-  >({});
-
   // dnd 로컬 순서 오버라이드(id 배열). 없으면 서버 정렬을 그대로 사용.
   const [orderOverride, setOrderOverride] = useState<string[] | null>(null);
   const items = useMemo(() => {
-    const base = !orderOverride
-      ? serverSorted
-      : (() => {
-          const byId = new Map(serverSorted.map((i) => [i.id, i]));
-          const ordered = orderOverride
-            .map((id) => byId.get(id))
-            .filter((i): i is PlanItem => !!i);
-          // 오버라이드에 없는 신규 항목은 뒤에 붙임
-          const extras = serverSorted.filter(
-            (i) => !orderOverride.includes(i.id),
-          );
-          return [...ordered, ...extras];
-        })();
-    // 세션 좌표를 병합
-    return base.map((i) => {
-      const c = sessionCoords[i.id];
-      return c ? { ...i, latitude: c.lat, longitude: c.lng } : i;
-    });
-  }, [serverSorted, orderOverride, sessionCoords]);
+    if (!orderOverride) return serverSorted;
+    const byId = new Map(serverSorted.map((i) => [i.id, i]));
+    const ordered = orderOverride
+      .map((id) => byId.get(id))
+      .filter((i): i is PlanItem => !!i);
+    // 오버라이드에 없는 신규 항목은 뒤에 붙임
+    const extras = serverSorted.filter((i) => !orderOverride.includes(i.id));
+    return [...ordered, ...extras];
+  }, [serverSorted, orderOverride]);
 
   const totalCost = items.reduce((sum, item) => sum + item.estimatedCost, 0);
   const placeCount = items.filter((i) => i.latitude).length;
@@ -134,11 +148,24 @@ export default function DayPlanPage() {
         .map((i, idx) => ({
           lat: i.latitude,
           lng: i.longitude,
-          label: sessionCoords[i.id]?.placeName || i.title,
+          label: i.placeName || i.title,
           order: idx + 1,
         })),
-    [items, sessionCoords],
+    [items],
   );
+
+  // itemId → 동선 순번(1부터). 좌표가 있는 항목만 번호를 갖는다.
+  const routeOrderById = useMemo(() => {
+    const map: Record<string, number> = {};
+    let n = 0;
+    for (const i of items) {
+      if (i.latitude != null && i.longitude != null) {
+        n += 1;
+        map[i.id] = n;
+      }
+    }
+    return map;
+  }, [items]);
 
   // 마커들을 순서대로 이은 직선 이동거리 합(km). 실제 도로거리는 아님(근사).
   const routeDistanceKm = useMemo(() => {
@@ -156,41 +183,11 @@ export default function DayPlanPage() {
 
   // D-day 라벨: 클라이언트에서만 정확한 값 (suppressHydrationWarning으로 처리)
   const dayLabel = getDayLabelFromStart(dayIndex, tripStartDate);
-  const [panelForm, setPanelForm] = useState<{
-    title: string;
-    categoryId: string;
-    startTime: string;
-    endTime: string;
-    estimatedCost: number;
-    place: string;
-    memo: string;
-    lat: number | null;
-    lng: number | null;
-  }>({
-    title: '',
-    categoryId: 'tour',
-    startTime: '',
-    endTime: '',
-    estimatedCost: 0,
-    place: '',
-    memo: '',
-    lat: null,
-    lng: null,
-  });
+  const [panelForm, setPanelForm] = useState<PlanForm>(EMPTY_FORM);
 
   function openAddPanel() {
     setEditingItem(null);
-    setPanelForm({
-      title: '',
-      categoryId: 'tour',
-      startTime: '',
-      endTime: '',
-      estimatedCost: 0,
-      place: '',
-      memo: '',
-      lat: null,
-      lng: null,
-    });
+    setPanelForm(EMPTY_FORM);
     setPanelOpen(true);
     setEditMode({
       active: true,
@@ -201,17 +198,17 @@ export default function DayPlanPage() {
 
   function openEditPanel(item: PlanItem) {
     setEditingItem(item);
-    const coord = sessionCoords[item.id];
     setPanelForm({
       title: item.title,
       categoryId: item.categoryId,
       startTime: item.startTime || '',
       endTime: item.endTime || '',
       estimatedCost: item.estimatedCost,
-      place: coord?.placeName ?? '',
+      place: item.placeName ?? '',
       memo: '',
-      lat: coord?.lat ?? item.latitude ?? null,
-      lng: coord?.lng ?? item.longitude ?? null,
+      lat: item.latitude ?? null,
+      lng: item.longitude ?? null,
+      nights: 1,
     });
     setPanelOpen(true);
     setEditMode({
@@ -223,6 +220,8 @@ export default function DayPlanPage() {
 
   function closePanel() {
     setPanelOpen(false);
+    setEditingItem(null);
+    setPanelForm(EMPTY_FORM);
     clearEditMode();
   }
 
@@ -238,68 +237,79 @@ export default function DayPlanPage() {
     }));
   }
 
-  /** itemId에 세션 좌표를 저장(또는 좌표가 없으면 제거). */
-  function persistCoord(itemId: string) {
-    setSessionCoords((prev) => {
-      const next = { ...prev };
-      if (panelForm.lat != null && panelForm.lng != null) {
-        next[itemId] = {
-          lat: panelForm.lat,
-          lng: panelForm.lng,
-          placeName: panelForm.place,
-        };
-      } else {
-        delete next[itemId];
-      }
-      return next;
-    });
-  }
-
   function handlePanelSave() {
     if (!dayId) return;
+    // 이미 저장 중이면 중복 제출 방지
+    if (createItemMut.isPending || updateItemMut.isPending) return;
+    // 좌표: 지정됐으면 값, 아니면 null(명시적으로 지움)
+    const lat = panelForm.lat;
+    const lng = panelForm.lng;
+    const placeName =
+      lat != null && lng != null ? panelForm.place || null : null;
+
     if (editingItem) {
-      const editId = editingItem.id;
       updateItemMut.mutate(
         {
-          itemId: editId,
+          itemId: editingItem.id,
           patch: {
             title: panelForm.title || editingItem.title,
             categoryId: panelForm.categoryId,
             startTime: panelForm.startTime || undefined,
             endTime: panelForm.endTime || undefined,
             estimatedCost: panelForm.estimatedCost,
+            latitude: lat,
+            longitude: lng,
+            placeName,
             memo: panelForm.memo || undefined,
           },
           dayDate,
         },
-        {
-          onSuccess: () => {
-            persistCoord(editId);
-            closePanel();
-          },
-        },
+        { onSuccess: closePanel },
       );
     } else {
-      createItemMut.mutate(
-        {
-          input: {
-            title: panelForm.title || '새 일정',
-            categoryId: panelForm.categoryId,
-            estimatedCost: panelForm.estimatedCost,
-            startTime: panelForm.startTime || undefined,
-            endTime: panelForm.endTime || undefined,
-            memo: panelForm.memo || undefined,
-            sortOrder: items.length,
-          },
-          dayDate,
-        },
-        {
-          onSuccess: (created) => {
-            persistCoord(created.id);
-            closePanel();
-          },
-        },
-      );
+      const input = {
+        title: panelForm.title || '새 일정',
+        categoryId: panelForm.categoryId,
+        estimatedCost: panelForm.estimatedCost,
+        startTime: panelForm.startTime || undefined,
+        endTime: panelForm.endTime || undefined,
+        latitude: lat,
+        longitude: lng,
+        placeName,
+        memo: panelForm.memo || undefined,
+        sortOrder: items.length,
+      };
+
+      // 숙소(stay)는 선택한 숙박 일수만큼 여러 Day에 동시 추가
+      const isStay = panelForm.categoryId === 'stay';
+      const maxNights = Math.max(1, days.length - dayIndex); // 남은 일수 한도
+      const nights = isStay
+        ? Math.min(Math.max(1, panelForm.nights), maxNights)
+        : 1;
+
+      if (nights <= 1) {
+        createItemMut.mutate({ input, dayDate }, { onSuccess: closePanel });
+        return;
+      }
+
+      // 여러 Day에 생성: dayIndex ~ dayIndex+nights-1
+      const targetDays = days.slice(dayIndex, dayIndex + nights);
+      void Promise.all(
+        targetDays.map((d) =>
+          createPlanItem(tripId, d.id, input, d.date || undefined),
+        ),
+      )
+        .then(() => {
+          // 관련 Day들의 일정 목록 캐시 무효화
+          targetDays.forEach((d) =>
+            queryClient.invalidateQueries({
+              queryKey: ['plan-items', tripId, d.id],
+            }),
+          );
+          toast.success(`${nights}일간 숙소 일정을 추가했어요`);
+          closePanel();
+        })
+        .catch(() => toast.error('숙소 일정 추가에 실패했어요'));
     }
   }
 
@@ -329,16 +339,7 @@ export default function DayPlanPage() {
 
   function deleteItem(id: string) {
     if (confirm('이 일정을 삭제할까요?')) {
-      deleteItemMut.mutate(id, {
-        onSuccess: () => {
-          setSessionCoords((prev) => {
-            if (!(id in prev)) return prev;
-            const next = { ...prev };
-            delete next[id];
-            return next;
-          });
-        },
-      });
+      deleteItemMut.mutate(id);
     }
   }
 
@@ -435,7 +436,8 @@ export default function DayPlanPage() {
                         item={item}
                         index={index}
                         total={items.length}
-                        placeName={sessionCoords[item.id]?.placeName}
+                        placeName={item.placeName}
+                        routeOrder={routeOrderById[item.id]}
                         onEdit={() => openEditPanel(item)}
                         onMoveUp={() => moveItem(index, 'up')}
                         onMoveDown={() => moveItem(index, 'down')}
@@ -490,7 +492,8 @@ export default function DayPlanPage() {
 
           {mapMarkers.length === 0 ? (
             <p className="rounded-sm border border-dashed border-surface-line bg-surface-bg-alt px-4 py-3 text-center text-xs text-ink-3">
-              일정 항목을 편집해 장소를 검색하면 지도에 표시돼요.
+              일정 항목에 장소를 지정하면 타임라인 순서대로 지도에 동선이
+              그려져요.
             </p>
           ) : (
             <div className="grid grid-cols-2 gap-4">
@@ -525,10 +528,10 @@ export default function DayPlanPage() {
         title={editingItem ? `일정 항목 편집` : '일정 항목 추가'}
       >
         <div className="space-y-5">
-          {/* 항목 유형 (카테고리) */}
+          {/* 카테고리 */}
           <div>
             <label className="mb-2 block text-sm font-medium text-ink-2">
-              항목 유형
+              카테고리
             </label>
             <div className="flex flex-wrap gap-2">
               {CATEGORIES.map((cat) => (
@@ -539,17 +542,53 @@ export default function DayPlanPage() {
                     setPanelForm((f) => ({ ...f, categoryId: cat.id }))
                   }
                   className={cn(
-                    'rounded-pill border px-3 py-1.5 text-sm font-medium transition-colors',
+                    'inline-flex items-center gap-1.5 rounded-pill border px-3 py-1.5 text-sm font-medium transition-colors',
                     panelForm.categoryId === cat.id
                       ? 'border-brand bg-brand text-on-brand'
                       : 'border-surface-line text-ink-2 hover:bg-surface-bg-alt',
                   )}
                 >
+                  <CategoryIcon id={cat.id} size={14} />
                   {cat.label}
                 </button>
               ))}
             </div>
           </div>
+
+          {/* 숙박 일수 (숙소 카테고리 + 신규 추가일 때만) */}
+          {panelForm.categoryId === 'stay' && !editingItem && (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-ink-2">
+                숙박 일수
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {Array.from(
+                  { length: Math.max(1, days.length - dayIndex) },
+                  (_, i) => i + 1,
+                ).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setPanelForm((f) => ({ ...f, nights: n }))}
+                    className={cn(
+                      'rounded-pill border px-3 py-1.5 text-sm font-medium transition-colors',
+                      panelForm.nights === n
+                        ? 'border-brand bg-brand text-on-brand'
+                        : 'border-surface-line text-ink-2 hover:bg-surface-bg-alt',
+                    )}
+                  >
+                    {n === 1 ? '이 날만' : `${n}일 연속`}
+                  </button>
+                ))}
+              </div>
+              {panelForm.nights > 1 && (
+                <p className="mt-1.5 text-xs text-ink-3">
+                  Day {dayIndex + 1}부터 {dayIndex + panelForm.nights}까지 같은
+                  숙소가 추가돼요.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* 제목 */}
           <Input
@@ -626,33 +665,6 @@ export default function DayPlanPage() {
             />
           </div>
 
-          {/* 카테고리 */}
-          <div>
-            <label className="mb-2 block text-sm font-medium text-ink-2">
-              카테고리
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {CATEGORIES.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() =>
-                    setPanelForm((f) => ({ ...f, categoryId: cat.id }))
-                  }
-                  className={cn(
-                    'inline-flex items-center gap-1.5 rounded-pill border px-3 py-1.5 text-xs font-medium transition-colors',
-                    panelForm.categoryId === cat.id
-                      ? 'border-brand bg-brand text-on-brand'
-                      : 'border-surface-line text-ink-2 hover:bg-surface-bg-alt',
-                  )}
-                >
-                  <CategoryIcon id={cat.id} size={13} />
-                  {cat.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* 예상 비용 */}
           <div>
             <Input
@@ -693,8 +705,16 @@ export default function DayPlanPage() {
             <Button variant="secondary" fullWidth onClick={closePanel}>
               취소
             </Button>
-            <Button fullWidth onClick={handlePanelSave}>
-              {editingItem ? '저장' : '추가'}
+            <Button
+              fullWidth
+              onClick={handlePanelSave}
+              disabled={createItemMut.isPending || updateItemMut.isPending}
+            >
+              {createItemMut.isPending || updateItemMut.isPending
+                ? '저장 중...'
+                : editingItem
+                  ? '저장'
+                  : '추가'}
             </Button>
           </div>
         </div>
@@ -708,6 +728,7 @@ function SortableTimelineItem({
   index,
   total,
   placeName,
+  routeOrder,
   onEdit,
   onMoveUp,
   onMoveDown,
@@ -717,6 +738,7 @@ function SortableTimelineItem({
   index: number;
   total: number;
   placeName?: string;
+  routeOrder?: number;
   onEdit: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
@@ -755,9 +777,19 @@ function SortableTimelineItem({
         <GripVertical size={14} />
       </div>
 
-      {/* 카테고리 아이콘 */}
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-surface-bg-alt text-ink-2">
-        <CategoryIcon id={item.categoryId} size={18} />
+      {/* 카테고리 아이콘 + (좌표 있으면) 작은 동선 순번 배지 겹침 */}
+      <span className="relative shrink-0">
+        <span className="flex h-9 w-9 items-center justify-center rounded-sm bg-surface-bg-alt text-ink-2">
+          <CategoryIcon id={item.categoryId} size={18} />
+        </span>
+        {routeOrder != null && (
+          <span
+            className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full border border-surface-card bg-brand px-1 text-[10px] font-bold text-on-brand"
+            title="지도 동선 순번"
+          >
+            {routeOrder}
+          </span>
+        )}
       </span>
 
       {/* 내용 */}

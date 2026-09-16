@@ -134,7 +134,7 @@ export function KakaoMap({
       }
     });
 
-    // 동선 폴리라인
+    // 동선 폴리라인 + 구간별 거리 라벨
     if (showRoute && path.length >= 2) {
       const polyline = new kakao.maps.Polyline({
         path,
@@ -145,6 +145,25 @@ export function KakaoMap({
         map,
       });
       overlaysRef.current.push(polyline);
+
+      // 각 구간(마커 i → i+1) 중점에 직선 거리 라벨 표시
+      for (let i = 1; i < markers.length; i++) {
+        const a = markers[i - 1];
+        const b = markers[i];
+        const km = haversineKm(a, b);
+        const distText =
+          km >= 1 ? `${km.toFixed(1)}km` : `${Math.round(km * 1000)}m`;
+        const midLat = (a.lat + b.lat) / 2;
+        const midLng = (a.lng + b.lng) / 2;
+        const seg = new kakao.maps.CustomOverlay({
+          position: new kakao.maps.LatLng(midLat, midLng),
+          content: `<div style="transform:translateY(-50%);white-space:nowrap;background:${ROUTE_COLOR};color:#fff;border-radius:9999px;padding:1px 7px;font-size:10px;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,0.2);">${distText}</div>`,
+          yAnchor: 0.5,
+          xAnchor: 0.5,
+          map,
+        });
+        overlaysRef.current.push(seg);
+      }
     }
 
     // 뷰포트 맞춤
@@ -199,4 +218,21 @@ function escapeHtml(s: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/** 두 좌표 사이의 직선(대권) 거리(km). */
+function haversineKm(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
 }
