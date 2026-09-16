@@ -25,9 +25,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           id={inputId}
           className={cn(
             'h-10 w-full rounded-xs border bg-surface-card px-3 text-sm text-ink placeholder:text-ink-3 transition-colors',
-            'focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand',
+            // 마우스 클릭 후엔 포커스 테두리가 남지 않도록 focus-visible 사용
+            // (키보드 탐색 시에만 링/테두리 표시 → 접근성 유지)
+            'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:border-brand',
             error
-              ? 'border-danger focus:ring-danger'
+              ? 'border-danger focus-visible:ring-danger'
               : 'border-surface-line hover:border-surface-line-strong',
             props.disabled && 'opacity-50 cursor-not-allowed bg-surface-bg',
             className,

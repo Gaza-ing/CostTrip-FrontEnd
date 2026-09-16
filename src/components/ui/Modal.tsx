@@ -9,9 +9,21 @@ interface ModalProps {
   onClose: () => void;
   children: ReactNode;
   className?: string;
+  /**
+   * 백드롭(바깥) 클릭으로 닫히게 할지. 기본 true.
+   * 입력이 많은 폼 모달은 false로 두어 X/취소 버튼(및 ESC)으로만 닫게 한다.
+   * (ESC는 dismissible과 무관하게 항상 닫힌다)
+   */
+  dismissible?: boolean;
 }
 
-export function Modal({ open, onClose, children, className }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  children,
+  className,
+  dismissible = true,
+}: ModalProps) {
   useEffect(() => {
     if (!open) return;
     function handleKeyDown(e: KeyboardEvent) {
@@ -37,7 +49,7 @@ export function Modal({ open, onClose, children, className }: ModalProps) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      onClick={onClose}
+      onClick={dismissible ? onClose : undefined}
     >
       {/* 백드롭 */}
       <div className="absolute inset-0 bg-ink/40" aria-hidden />

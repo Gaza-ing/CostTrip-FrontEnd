@@ -16,11 +16,20 @@ import {
   useInviteByEmail,
 } from '@/hooks/use-members';
 import { toast } from '@/stores/toast-store';
+import { ApiError } from '@/lib/api/client';
 import { Avatar } from '@/components/ui/Avatar';
+import { Modal } from '@/components/ui/Modal';
 import { useMyProfile } from '@/hooks/use-my-profile';
-import { Plus, Copy, Link2 } from 'lucide-react';
+import {
+  Plus,
+  Copy,
+  Link2,
+  MoreHorizontal,
+  Info,
+  UserMinus,
+} from 'lucide-react';
 import { useParams } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Invite } from '@/types';
 
 export default function MembersPage() {
@@ -30,6 +39,10 @@ export default function MembersPage() {
   // 서버 데이터
   const { data: members = [], isLoading } = useMembers(tripId);
   const { userId: myUserId, avatarColor: myColor } = useMyProfile();
+  // 현재 로그인 사용자가 이 여행의 소유자인지 (내보내기는 소유자만 가능)
+  const iAmOwner = !!myUserId
+    ? members.some((m) => m.userId === myUserId && m.role === 'owner')
+    : false;
   const addVirtual = useAddVirtualMember(tripId);
   const updateRole = useUpdateMemberRole(tripId);
   const removeMemberMut = useRemoveMember(tripId);
@@ -45,6 +58,24 @@ export default function MembersPage() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'editor' | 'viewer'>('editor');
   const inviteByEmailMut = useInviteByEmail(tripId);
+
+  // 멤버 행 액션 드롭다운 / 정보 보기 / 내보내기 확인 모달
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [infoMemberId, setInfoMemberId] = useState<string | null>(null);
+  const [removeMemberId, setRemoveMemberId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  // 드롭다운 바깥 클릭 시 닫기
+  useEffect(() => {
+    if (!openMenuId) return;
+    function onClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    }
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [openMenuId]);
 
   // 통계
   const totalMembers = members.length;
@@ -118,13 +149,32 @@ export default function MembersPage() {
     updateRole.mutate({ memberId, role: newRole });
   }
 
+  // 내보내기 클릭 → 확인 모달 열기 (실제 삭제는 confirmRemoveMember)
   function handleRemoveMember(memberId: string) {
     const member = members.find((m) => m.id === memberId);
-    if (!member) return;
-    if (member.role === 'owner') return;
-    if (confirm(`${member.displayName}님을 여행에서 제거할까요?`)) {
-      removeMemberMut.mutate(memberId);
-    }
+    if (!member || member.role === 'owner') return;
+    setRemoveMemberId(memberId);
+  }
+
+  function confirmRemoveMember() {
+    if (!removeMemberId) return;
+    const target = members.find((m) => m.id === removeMemberId);
+    removeMemberMut.mutate(removeMemberId, {
+      onSuccess: () => {
+        toast.success(
+          target ? `${target.displayName}님을 내보냈어요` : '멤버를 내보냈어요',
+        );
+        setRemoveMemberId(null);
+      },
+      onError: (err) => {
+        const msg =
+          err instanceof ApiError && typeof err.detail === 'string'
+            ? err.detail
+            : '멤버를 내보내지 못했어요';
+        toast.error(msg);
+        setRemoveMemberId(null);
+      },
+    });
   }
 
   function handleAddVirtualMember() {
@@ -152,19 +202,21 @@ export default function MembersPage() {
     <div className="space-y-5">
       {/* 상단 지표 */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-md border border-surface-line bg-surface-card p-5">
+        <div className="min-w-0 rounded-md border border-surface-line bg-surface-card p-4 sm:p-5">
           <p className="text-xs text-ink-3 font-medium">전체 멤버</p>
-          <p className="mt-1.5 text-2xl font-bold text-ink">{totalMembers}명</p>
+          <p className="mt-1.5 truncate text-lg font-bold text-ink tabular-nums sm:text-2xl">
+            {totalMembers}명
+          </p>
         </div>
-        <div className="rounded-md border border-surface-line bg-surface-card p-5">
+        <div className="min-w-0 rounded-md border border-surface-line bg-surface-card p-4 sm:p-5">
           <p className="text-xs text-ink-3 font-medium">정식 가입</p>
-          <p className="mt-1.5 text-2xl font-bold text-ok-text">
+          <p className="mt-1.5 truncate text-lg font-bold text-ok-text tabular-nums sm:text-2xl">
             {registeredMembers}명
           </p>
         </div>
-        <div className="rounded-md border border-surface-line bg-surface-card p-5">
+        <div className="min-w-0 rounded-md border border-surface-line bg-surface-card p-4 sm:p-5">
           <p className="text-xs text-ink-3 font-medium">대기 중 초대</p>
-          <p className="mt-1.5 text-2xl font-bold text-warn-text">
+          <p className="mt-1.5 truncate text-lg font-bold text-warn-text tabular-nums sm:text-2xl">
             {pendingInvites}건
           </p>
         </div>
@@ -193,10 +245,11 @@ export default function MembersPage() {
 
           {/* 멤버 행 */}
           <div className="space-y-3">
-            {members.map((m, i) => {
+            {members.map((m) => {
               const isOwner = m.role === 'owner';
               const isVirtual = m.userId === null;
-              const isSelf = i === 0;
+              // 실제 로그인 사용자 본인인지 (목록 순서가 아니라 userId로 판정)
+              const isSelf = !!myUserId && m.userId === myUserId;
 
               return (
                 <div
@@ -269,26 +322,58 @@ export default function MembersPage() {
                     )}
                   </div>
 
-                  <div className="flex items-center justify-end gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={isOwner || isSelf}
-                      onClick={() => handleRemoveMember(m.id)}
+                  <div className="flex items-center justify-end">
+                    <div
+                      className="relative"
+                      ref={openMenuId === m.id ? menuRef : undefined}
                     >
-                      제거
-                    </Button>
-                    <button
-                      disabled={isOwner || isSelf}
-                      className={cn(
-                        'flex h-7 w-7 items-center justify-center rounded-sm text-sm transition-colors',
-                        isOwner || isSelf
-                          ? 'text-ink-3 opacity-35 cursor-not-allowed'
-                          : 'text-ink-2 hover:bg-surface-bg-alt',
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOpenMenuId((cur) => (cur === m.id ? null : m.id))
+                        }
+                        aria-label="멤버 액션"
+                        aria-haspopup="menu"
+                        aria-expanded={openMenuId === m.id}
+                        className="flex h-7 w-7 items-center justify-center rounded-sm text-ink-2 transition-colors hover:bg-surface-bg-alt"
+                      >
+                        <MoreHorizontal size={16} />
+                      </button>
+
+                      {openMenuId === m.id && (
+                        <div
+                          role="menu"
+                          className="absolute right-0 top-8 z-20 w-40 overflow-hidden rounded-sm border border-surface-line bg-surface-card py-1 shadow-md"
+                        >
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              setInfoMemberId(m.id);
+                              setOpenMenuId(null);
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink-2 transition-colors hover:bg-surface-bg-alt"
+                          >
+                            <Info size={15} />
+                            멤버 정보 보기
+                          </button>
+                          {iAmOwner && !(isOwner || isSelf) && (
+                            <button
+                              type="button"
+                              role="menuitem"
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                handleRemoveMember(m.id);
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-danger-text transition-colors hover:bg-danger-soft"
+                            >
+                              <UserMinus size={15} />
+                              내보내기
+                            </button>
+                          )}
+                        </div>
                       )}
-                    >
-                      ⋯
-                    </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -564,6 +649,108 @@ export default function MembersPage() {
           </Button>
         </div>
       </SlidePanel>
+
+      {/* 멤버 정보 보기 모달 */}
+      {(() => {
+        const info = infoMemberId
+          ? members.find((m) => m.id === infoMemberId)
+          : null;
+        if (!info) return null;
+        const isVirtual = info.userId === null;
+        return (
+          <Modal open={!!info} onClose={() => setInfoMemberId(null)}>
+            <div className="p-6">
+              <div className="flex items-center gap-4">
+                <Avatar
+                  name={info.displayName}
+                  colorSeed={info.id}
+                  color={info.avatarColor ?? undefined}
+                  size={56}
+                />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-lg font-bold text-ink truncate">
+                      {info.displayName}
+                    </p>
+                    {isVirtual && <Badge variant="warn">가상</Badge>}
+                  </div>
+                  <p className="text-sm text-ink-3">
+                    {isVirtual ? '미가입 · 정산 대상' : '정식 멤버'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 space-y-3 border-t border-surface-line pt-4 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-ink-3">권한</span>
+                  <Badge variant={info.role === 'owner' ? 'brand' : 'default'}>
+                    {info.role}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-ink-3">상태</span>
+                  <span className="font-medium text-ink">
+                    {isVirtual ? '가상 멤버' : '가입됨'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-ink-3">합류일</span>
+                  <span className="font-medium text-ink">
+                    {info.joinedAt
+                      ? new Date(info.joinedAt).toLocaleDateString('ko-KR')
+                      : '-'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <Button onClick={() => setInfoMemberId(null)}>확인</Button>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
+
+      {/* 멤버 내보내기 확인 모달 (앱 공통 확인 모달 UI 재사용) */}
+      {(() => {
+        const target = removeMemberId
+          ? members.find((m) => m.id === removeMemberId)
+          : null;
+        if (!target) return null;
+        return (
+          <Modal
+            open={!!target}
+            onClose={() =>
+              !removeMemberMut.isPending && setRemoveMemberId(null)
+            }
+          >
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-ink">멤버를 내보낼까요?</h3>
+              <p className="mt-2 text-sm text-ink-2 leading-relaxed">
+                <b className="text-ink">{target.displayName}</b>님을 이 여행에서
+                내보냅니다. 지출·정산 이력은 보존되지만, 더 이상 이 여행에
+                접근할 수 없어요.
+              </p>
+              <div className="mt-6 flex justify-end gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => setRemoveMemberId(null)}
+                  disabled={removeMemberMut.isPending}
+                >
+                  취소
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={confirmRemoveMember}
+                  disabled={removeMemberMut.isPending}
+                >
+                  {removeMemberMut.isPending ? '내보내는 중...' : '내보내기'}
+                </Button>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
     </div>
   );
 }

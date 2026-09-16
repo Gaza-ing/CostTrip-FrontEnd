@@ -3,7 +3,9 @@
 import { Button } from '@/components/ui/Button';
 import { TripCard } from '@/components/trip/TripCard';
 import { JoinByCode } from '@/components/trip/JoinByCode';
+import { InviteAlertBanner } from '@/components/trip/InviteAlertBanner';
 import { useTrips } from '@/hooks/use-trips';
+import { useAppStore } from '@/stores/app-store';
 import { formatKRW } from '@/lib/utils';
 import { getTripPhase } from '@/lib/trip-status';
 import { Loader2 } from 'lucide-react';
@@ -21,10 +23,20 @@ const filterLabels: { value: StatusFilter; label: string }[] = [
 export default function HomePage() {
   const { data: trips, isLoading, isError, refetch } = useTrips();
   const [filter, setFilter] = useState<StatusFilter>('all');
+  const searchQuery = useAppStore((s) => s.searchQuery);
+  const query = searchQuery.trim().toLowerCase();
 
   // 필터·통계는 날짜 기준 파생 상태(getTripPhase)로 통일 — 카드 배지와 일치
+  // 상태 필터 + 검색어(제목·목적지) 를 AND로 결합
   const filteredTrips =
-    trips?.filter((t) => filter === 'all' || getTripPhase(t) === filter) ?? [];
+    trips?.filter((t) => {
+      const matchStatus = filter === 'all' || getTripPhase(t) === filter;
+      const matchQuery =
+        !query ||
+        t.title.toLowerCase().includes(query) ||
+        (t.destination ?? '').toLowerCase().includes(query);
+      return matchStatus && matchQuery;
+    }) ?? [];
 
   // Web 상단 stat 계산 (여행 목록에서 파생 가능한 값만)
   const stats = trips
@@ -32,8 +44,14 @@ export default function HomePage() {
         ongoing: trips.filter((t) => getTripPhase(t) === 'ongoing').length,
         planning: trips.filter((t) => getTripPhase(t) === 'planning').length,
         completed: trips.filter((t) => getTripPhase(t) === 'completed').length,
-        totalBudget: trips.reduce((sum, t) => sum + t.totalBudget, 0),
-        noBudgetCount: trips.filter((t) => t.totalBudget === 0).length,
+        // 활성 예산 = 진행 중 + 예정 (완료된 여행은 제외)
+        activeBudget: trips
+          .filter((t) => getTripPhase(t) !== 'completed')
+          .reduce((sum, t) => sum + t.totalBudget, 0),
+        // 예산 미설정도 활성(진행·예정) 여행 기준으로만 센다
+        noBudgetCount: trips.filter(
+          (t) => getTripPhase(t) !== 'completed' && t.totalBudget === 0,
+        ).length,
       }
     : null;
 
@@ -68,6 +86,10 @@ export default function HomePage() {
   if (!trips || trips.length === 0) {
     return (
       <div className="mx-auto max-w-md py-16">
+        {/* 여행은 없어도 받은 초대가 있으면 상단에 유도 배너 */}
+        <div className="mb-6">
+          <InviteAlertBanner />
+        </div>
         <div className="flex flex-col items-center text-center">
           <p className="text-lg font-medium text-ink">
             첫 여행을 만들어 보세요
@@ -91,16 +113,36 @@ export default function HomePage() {
 
   return (
     <div className="space-y-6">
-      {/* Web 상단 stat (lg 이상에서만 표시) */}
+      {/* 받은 초대가 있으면 상단에 유도 배너 */}
+      <InviteAlertBanner />
+
+      {/* 상단 stat (작은 화면 2열, 데스크톱 4열) */}
       {stats && (
-        <div className="hidden lg:grid grid-cols-4 gap-4">
-          <StatCard label="진행 중" value={`${stats.ongoing}건`} />
-          <StatCard label="예정" value={`${stats.planning}건`} />
-          <StatCard label="완료" value={`${stats.completed}건`} />
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard
+            label="진행 중"
+            value={`${stats.ongoing}건`}
+            valueClassName="text-brand"
+          />
+          <StatCard
+            label="예정"
+            value={`${stats.planning}건`}
+            valueClassName="text-warn-text"
+          />
+          <StatCard
+            label="완료"
+            value={`${stats.completed}건`}
+            valueClassName="text-ok-text"
+          />
           <StatCard
             label="총 예산 합계"
-            value={formatKRW(stats.totalBudget)}
-            hint={`예산 미설정 ${stats.noBudgetCount}건`}
+            value={formatKRW(stats.activeBudget)}
+            valueClassName="text-brand"
+            hint={
+              stats.noBudgetCount > 0
+                ? `완료 제외 · 예산 미설정 ${stats.noBudgetCount}건`
+                : '완료된 여행 제외'
+            }
           />
         </div>
       )}
@@ -144,7 +186,9 @@ export default function HomePage() {
         </div>
       ) : (
         <p className="py-10 text-center text-sm text-ink-3">
-          해당 상태의 여행이 없습니다
+          {query
+            ? `'${searchQuery.trim()}'에 해당하는 여행이 없습니다`
+            : '해당 상태의 여행이 없습니다'}
         </p>
       )}
     </div>
@@ -163,14 +207,14 @@ function StatCard({
   valueClassName?: string;
 }) {
   return (
-    <div className="rounded-sm border border-surface-line bg-surface-card p-4">
+    <div className="min-w-0 rounded-sm border border-surface-line bg-surface-card p-4">
       <p className="text-xs text-ink-3">{label}</p>
       <p
-        className={`mt-1 text-lg font-semibold ${valueClassName || 'text-ink'}`}
+        className={`mt-1 truncate text-lg font-semibold tabular-nums ${valueClassName || 'text-ink'}`}
       >
         {value}
       </p>
-      {hint && <p className="mt-0.5 text-xs text-ink-3">{hint}</p>}
+      {hint && <p className="mt-0.5 truncate text-xs text-ink-3">{hint}</p>}
     </div>
   );
 }

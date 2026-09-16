@@ -6,6 +6,7 @@ import {
   removeMember,
   createInvite,
   acceptInvite,
+  previewInvite,
   inviteByEmail,
   respondMembershipInvite,
 } from '@/lib/api/members';
@@ -66,6 +67,17 @@ export function useCreateInvite(tripId: string) {
       defaultRole?: 'editor' | 'viewer';
       maxUses?: number | null;
     }) => createInvite(tripId, input),
+  });
+}
+
+/** 초대 미리보기 (수락 전 여행 정보 조회) */
+export function useInvitePreview(input: { token?: string; code?: string }) {
+  const key = input.token ?? input.code ?? '';
+  return useQuery({
+    queryKey: ['invite-preview', key],
+    queryFn: () => previewInvite(input),
+    enabled: !!key,
+    retry: false, // 만료/무효 초대는 재시도하지 않음
   });
 }
 

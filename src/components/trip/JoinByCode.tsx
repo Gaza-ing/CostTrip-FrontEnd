@@ -51,7 +51,7 @@ export function JoinByCode() {
       <p className="text-xs text-ink-3 mb-3">
         친구에게 받은 초대 코드를 입력하면 그 여행에 합류합니다.
       </p>
-      <div className="flex gap-2">
+      <div className="flex items-center gap-2">
         <input
           type="text"
           value={code}
@@ -62,7 +62,7 @@ export function JoinByCode() {
           className="h-10 flex-1 min-w-0 rounded-sm border border-surface-line bg-surface-card px-3 text-sm uppercase tracking-widest text-ink placeholder:normal-case placeholder:tracking-normal placeholder:text-ink-3 focus:outline-none focus:ring-2 focus:ring-brand"
         />
         <Button
-          size="sm"
+          size="md"
           className="shrink-0 px-5"
           disabled={acceptMut.isPending}
           onClick={handleJoin}

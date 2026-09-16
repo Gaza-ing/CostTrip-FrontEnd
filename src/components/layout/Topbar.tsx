@@ -1,9 +1,8 @@
 'use client';
 
-import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/app-store';
 import { useNotifications } from '@/hooks/use-notifications';
-import { Bell, PanelLeftOpen, Plus, Search } from 'lucide-react';
+import { Bell, PanelLeftOpen, Plus, Search, X } from 'lucide-react';
 import Link from 'next/link';
 
 interface TopbarProps {
@@ -24,7 +23,8 @@ export function Topbar({
   onCreateTrip,
   action,
 }: TopbarProps) {
-  const { sidebarOpen, toggleSidebar } = useAppStore();
+  const { sidebarOpen, toggleSidebar, searchQuery, setSearchQuery } =
+    useAppStore();
   const { data: notifications } = useNotifications();
   const unreadCount = notifications?.filter((n) => !n.isRead).length ?? 0;
 
@@ -66,24 +66,32 @@ export function Topbar({
 
       {/* 우: 검색 + 알림 + 여행 생성 */}
       <div className="flex items-center gap-3">
-        {/* 검색 */}
-        <div
-          className={cn(
-            'relative hidden sm:block',
-            !searchEnabled && 'opacity-50 pointer-events-none',
-          )}
-        >
-          <Search
-            size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3"
-          />
-          <input
-            type="text"
-            placeholder={searchPlaceholder}
-            disabled={!searchEnabled}
-            className="h-9 w-52 rounded-pill border border-surface-line bg-surface-bg pl-9 pr-4 text-sm text-ink placeholder:text-ink-3 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand"
-          />
-        </div>
+        {/* 검색 (검색 대상이 있는 화면에서만 노출) */}
+        {searchEnabled && (
+          <div className="relative hidden sm:block">
+            <Search
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3"
+            />
+            <input
+              type="text"
+              placeholder={searchPlaceholder}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-9 w-52 rounded-pill border border-surface-line bg-surface-bg pl-9 pr-9 text-sm text-ink placeholder:text-ink-3 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full text-ink-3 hover:bg-surface-bg-alt hover:text-ink-2 transition-colors"
+                aria-label="검색어 지우기"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+        )}
 
         {/* 알림 */}
         <Link
@@ -110,13 +118,8 @@ export function Topbar({
           </button>
         )}
 
-        {/* 페이지별 동적 액션 (없으면 기본 프로필 아바타로 대체) */}
-        {action ??
-          (!onCreateTrip && (
-            <div className="flex h-9 w-9 items-center justify-center rounded-pill bg-brand text-sm font-medium text-on-brand">
-              지
-            </div>
-          ))}
+        {/* 페이지별 동적 액션 (예: 그룹·멤버의 "멤버 초대", 알림의 "모두 읽음") */}
+        {action}
       </div>
     </header>
   );

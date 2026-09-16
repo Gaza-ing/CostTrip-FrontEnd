@@ -59,7 +59,24 @@ export function TripCard({ trip }: TripCardProps) {
   const fallbackCount = members ? 0 : Math.min(trip.headcount, MAX_AVATARS);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [noPermOpen, setNoPermOpen] = useState(false);
   const deleteTripMut = useDeleteTrip();
+
+  // 여행 삭제는 소유자(owner)만 가능. 내 멤버 레코드의 role로 판단.
+  // 멤버 목록을 아직 못 받았으면(undefined) 일단 허용하고 서버에서 최종 검증.
+  const myMember = myUserId
+    ? allMembers?.find((m) => m.userId === myUserId)
+    : undefined;
+  const canDelete = !allMembers || myMember?.role === 'owner';
+
+  // 삭제 버튼 클릭: 권한 있으면 확인 모달, 없으면 안내 모달
+  function handleDeleteClick() {
+    if (canDelete) {
+      setConfirmOpen(true);
+    } else {
+      setNoPermOpen(true);
+    }
+  }
 
   function handleDelete() {
     deleteTripMut.mutate(trip.id, {
@@ -87,7 +104,7 @@ export function TripCard({ trip }: TripCardProps) {
           aria-label={`${trip.title} 삭제`}
           onClick={(e) => {
             e.preventDefault();
-            setConfirmOpen(true);
+            handleDeleteClick();
           }}
         >
           <Trash2 size={14} />
@@ -186,6 +203,20 @@ export function TripCard({ trip }: TripCardProps) {
             >
               {deleteTripMut.isPending ? '삭제 중...' : '삭제'}
             </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 권한 없음 안내 모달 (소유자가 아닌 멤버가 삭제 시도) */}
+      <Modal open={noPermOpen} onClose={() => setNoPermOpen(false)}>
+        <div className="p-6">
+          <h3 className="text-lg font-bold text-ink">삭제 권한이 없어요</h3>
+          <p className="mt-2 text-sm text-ink-2 leading-relaxed">
+            <b className="text-ink">{trip.title}</b> 여행은 소유자만 삭제할 수
+            있어요. 삭제가 필요하면 여행 소유자에게 요청해 주세요.
+          </p>
+          <div className="mt-6 flex justify-end">
+            <Button onClick={() => setNoPermOpen(false)}>확인</Button>
           </div>
         </div>
       </Modal>

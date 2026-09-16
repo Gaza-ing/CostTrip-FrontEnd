@@ -188,3 +188,28 @@ body {
 .toast-enter {
   animation: toast-in 0.2s ease-out;
 }
+
+/* ============================================
+   time input 포커스 잔상 제거
+   메모·장소 등 일반 input은 focus-visible로 처리되지만, time input은
+   내부 시계 picker 버튼/스피너를 클릭하면 브라우저가 자체 outline을 남긴다.
+   time input 계열은 outline을 명시적으로 제거한다.
+   ============================================ */
+input[type='time'],
+input[type='date'],
+input[type='datetime-local'] {
+  outline: none !important;
+}
+input[type='time']:focus,
+input[type='date']:focus,
+input[type='datetime-local']:focus {
+  outline: none !important;
+}
+input[type='time']::-webkit-calendar-picker-indicator,
+input[type='date']::-webkit-calendar-picker-indicator {
+  outline: none;
+}
+input[type='time']::-webkit-calendar-picker-indicator:focus,
+input[type='date']::-webkit-calendar-picker-indicator:focus {
+  outline: none;
+}

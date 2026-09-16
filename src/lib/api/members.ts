@@ -55,6 +55,30 @@ export async function acceptInvite(input: {
   );
 }
 
+/** 초대 미리보기 (수락 전, 인증 불필요). 어떤 여행 초대인지 요약. */
+export interface InvitePreview {
+  tripTitle: string;
+  destination: string;
+  startDate: string;
+  endDate: string;
+  inviterName: string;
+  memberCount: number;
+  defaultRole: string;
+  expiresAt: string;
+  isExpired: boolean;
+}
+
+/** 토큰 또는 코드로 초대 미리보기 조회. */
+export function previewInvite(input: {
+  token?: string;
+  code?: string;
+}): Promise<InvitePreview> {
+  return apiClient.get<InvitePreview>('/invite/preview', {
+    params: { token: input.token, code: input.code },
+    skipAuth: true,
+  });
+}
+
 export interface EmailInviteResult {
   /** 'invited' | 'not_registered' | 'already_member' */
   status: string;

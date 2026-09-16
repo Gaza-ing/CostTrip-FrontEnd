@@ -146,23 +146,23 @@ export default function ExpenseListPage() {
     <div className="space-y-5">
       {/* 상단 지표 3개 */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-md border border-surface-line bg-surface-card p-5">
+        <div className="min-w-0 rounded-md border border-surface-line bg-surface-card p-4 sm:p-5">
           <p className="text-xs text-ink-3 font-medium">누적 실지출</p>
-          <p className="mt-1.5 text-2xl font-bold text-brand">
+          <p className="mt-1.5 truncate text-lg font-bold text-brand tabular-nums sm:text-2xl">
             {formatKRW(totalSpent)}
           </p>
         </div>
-        <div className="rounded-md border border-surface-line bg-surface-card p-5">
+        <div className="min-w-0 rounded-md border border-surface-line bg-surface-card p-4 sm:p-5">
           <p className="text-xs text-ink-3 font-medium">기록된 지출</p>
-          <p className="mt-1.5 text-2xl font-bold text-ink">
+          <p className="mt-1.5 truncate text-lg font-bold text-ink tabular-nums sm:text-2xl">
             {tripExpenses.length}건
           </p>
         </div>
-        <div className="rounded-md border border-surface-line bg-surface-card p-5">
+        <div className="min-w-0 rounded-md border border-surface-line bg-surface-card p-4 sm:p-5">
           <p className="text-xs text-ink-3 font-medium">남은 예산</p>
           <p
             className={cn(
-              'mt-1.5 text-2xl font-bold',
+              'mt-1.5 truncate text-lg font-bold tabular-nums sm:text-2xl',
               remaining >= 0 ? 'text-ok-text' : 'text-danger-text',
             )}
           >

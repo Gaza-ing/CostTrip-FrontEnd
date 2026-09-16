@@ -7,7 +7,7 @@ import { useTrips } from '@/hooks/use-trips';
 import { useIsDesktop } from '@/hooks/use-is-desktop';
 import { useAppStore } from '@/stores/app-store';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function GlobalLayout({
   children,
@@ -24,9 +24,14 @@ export default function GlobalLayout({
 function GlobalLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data: trips } = useTrips();
-  const { sidebarOpen, sidebarWidth } = useAppStore();
+  const { sidebarOpen, sidebarWidth, setSearchQuery } = useAppStore();
   const [createOpen, setCreateOpen] = useState(false);
   const isDesktop = useIsDesktop();
+
+  // 페이지 이동 시 헤더 검색어 초기화 (홈↔알림 등 컨텍스트가 달라짐)
+  useEffect(() => {
+    setSearchQuery('');
+  }, [pathname, setSearchQuery]);
 
   const ongoing = trips?.filter((t) => t.status === 'in_progress').length ?? 0;
   const planning = trips?.filter((t) => t.status === 'planning').length ?? 0;
