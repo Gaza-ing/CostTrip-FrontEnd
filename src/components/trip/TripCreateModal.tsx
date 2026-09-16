@@ -10,6 +10,7 @@ import { useMyProfile } from '@/hooks/use-my-profile';
 import { useAppStore } from '@/stores/app-store';
 import { toast } from '@/stores/toast-store';
 import { inviteByEmail } from '@/lib/api/members';
+import { lookupUser } from '@/lib/api/auth';
 import {
   useAreaBasedPlaces,
   useSearchPlaces,
@@ -31,6 +32,10 @@ interface MemberItem {
   email: string;
   role: 'owner' | 'editor' | 'viewer';
   color: string;
+  /** 실제 가입한 사용자인지 (이메일 조회 결과). owner(나)는 항상 true */
+  registered?: boolean;
+  /** 가입자면 서버의 아바타 색 */
+  avatarColor?: string | null;
 }
 
 const MEMBER_COLORS = ['bg-brand', 'bg-ok', 'bg-warn', 'bg-member-purple'];
@@ -65,6 +70,7 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
   const ownerName = me?.displayName ? `${me.displayName} (나)` : '나';
 
   const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteChecking, setInviteChecking] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // 목적지 검색어(입력) + 디바운스된 검색어(질의)
@@ -109,17 +115,53 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
     return Object.keys(newErrors).length === 0;
   }
 
-  function handleInvite() {
-    if (!inviteEmail.trim()) return;
-    const newMember: MemberItem = {
-      id: `member-${Date.now()}`,
-      name: inviteEmail.split('@')[0],
-      email: inviteEmail,
-      role: 'editor',
-      color: MEMBER_COLORS[members.length % MEMBER_COLORS.length],
-    };
-    setMembers((prev) => [...prev, newMember]);
-    setInviteEmail('');
+  async function handleInvite() {
+    const email = inviteEmail.trim().toLowerCase();
+    if (!email) return;
+
+    // 형식 검사
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error('올바른 이메일 형식이 아니에요');
+      return;
+    }
+    // 중복(이미 추가했거나 나 자신) 검사
+    if (members.some((m) => m.email.toLowerCase() === email)) {
+      toast.info('이미 추가된 멤버예요');
+      return;
+    }
+    if (me?.email && me.email.toLowerCase() === email) {
+      toast.info('본인은 이미 소유자로 포함돼 있어요');
+      return;
+    }
+
+    // 실제 가입한 사용자인지 백엔드로 확인
+    setInviteChecking(true);
+    try {
+      const result = await lookupUser(email);
+      if (!result.exists) {
+        toast.error(
+          '가입하지 않은 이메일이에요. 멤버 화면에서 링크·코드로 초대해 주세요.',
+        );
+        return;
+      }
+      const newMember: MemberItem = {
+        id: `member-${Date.now()}`,
+        // 실제 가입자의 표시 이름을 사용 (없으면 이메일 앞부분)
+        name: result.displayName || email.split('@')[0],
+        email,
+        role: 'editor',
+        color: MEMBER_COLORS[members.length % MEMBER_COLORS.length],
+        registered: true,
+        avatarColor: result.avatarColor ?? null,
+      };
+      setMembers((prev) => [...prev, newMember]);
+      setInviteEmail('');
+      toast.success(`${newMember.name}님을 초대 목록에 추가했어요`);
+    } catch {
+      toast.error('이메일 확인에 실패했어요. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setInviteChecking(false);
+    }
   }
 
   function handleRoleChange(memberId: string, role: 'editor' | 'viewer') {
@@ -209,7 +251,12 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
   ].filter(Boolean);
 
   return (
-    <Modal open={open} onClose={onClose} className="max-w-lg">
+    <Modal
+      open={open}
+      onClose={onClose}
+      className="max-w-lg"
+      dismissible={false}
+    >
       <form onSubmit={handleSubmit} className="flex flex-col h-full min-h-0">
         {/* 헤더 (고정) */}
         <div className="shrink-0 border-b border-surface-line px-6 pb-4 pt-6">
@@ -405,7 +452,11 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
                     <Avatar
                       name={member.id === 'me' ? ownerName : member.name}
                       colorSeed={member.email || member.id}
-                      color={member.id === 'me' ? myColor : undefined}
+                      color={
+                        member.id === 'me'
+                          ? myColor
+                          : (member.avatarColor ?? undefined)
+                      }
                       size={36}
                     />
                     {/* 정보 */}
@@ -451,6 +502,7 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
                     type="email"
                     placeholder="name@email.com"
                     value={inviteEmail}
+                    disabled={inviteChecking}
                     onChange={(e) => setInviteEmail(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
@@ -458,17 +510,22 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
                         handleInvite();
                       }
                     }}
-                    className="h-10 flex-1 rounded-xs border border-surface-line bg-surface-card px-3 text-sm text-ink placeholder:text-ink-3 focus:outline-none focus:ring-2 focus:ring-brand"
+                    className="h-10 flex-1 rounded-xs border border-surface-line bg-surface-card px-3 text-sm text-ink placeholder:text-ink-3 focus:outline-none focus:ring-2 focus:ring-brand disabled:opacity-60"
                   />
                   <Button
                     type="button"
                     variant="secondary"
                     size="md"
                     onClick={handleInvite}
+                    disabled={inviteChecking || !inviteEmail.trim()}
                   >
-                    초대
+                    {inviteChecking ? '확인 중...' : '초대'}
                   </Button>
                 </div>
+                <p className="mt-1.5 text-[11px] text-ink-3">
+                  가입한 사용자만 추가돼요. 미가입자는 여행 생성 후 멤버
+                  화면에서 링크·코드로 초대해 주세요.
+                </p>
               </div>
             </div>
           </div>

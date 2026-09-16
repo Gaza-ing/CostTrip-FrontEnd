@@ -23,3 +23,17 @@ export function syncUser(input: UserSyncInput): Promise<User> {
 export function fetchMe(): Promise<User> {
   return apiClient.get<User>('/auth/me');
 }
+
+export interface UserLookupResult {
+  exists: boolean;
+  email: string;
+  displayName?: string | null;
+  avatarColor?: string | null;
+}
+
+/** 이메일로 가입 여부 확인 (초대 대상 미리 검증용). */
+export function lookupUser(email: string): Promise<UserLookupResult> {
+  return apiClient.get<UserLookupResult>('/users/lookup', {
+    params: { email },
+  });
+}

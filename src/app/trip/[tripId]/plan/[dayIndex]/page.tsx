@@ -72,7 +72,9 @@ interface PlanForm {
 const EMPTY_FORM: PlanForm = {
   title: '',
   categoryId: 'tour',
-  startTime: '',
+  // 현재 시각이 아니라 00:00을 기본값으로 (브라우저 time input이 빈 값이면
+  // 현재 시각을 placeholder로 보여줘 헷갈리므로 명시적으로 자정 지정)
+  startTime: '00:00',
   endTime: '',
   estimatedCost: 0,
   place: '',

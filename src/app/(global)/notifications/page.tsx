@@ -25,6 +25,7 @@ import {
   useDeleteNotification,
 } from '@/hooks/use-notifications';
 import { useRespondMembershipInvite } from '@/hooks/use-members';
+import { useAppStore } from '@/stores/app-store';
 import { toast } from '@/stores/toast-store';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -132,6 +133,7 @@ export default function NotificationsPage() {
   const deleteNotifMut = useDeleteNotification();
   const respondInviteMut = useRespondMembershipInvite();
   const [filter, setFilter] = useState<FilterPreset>('all');
+  const searchQuery = useAppStore((s) => s.searchQuery);
 
   function handleInviteRespond(n: Notification, action: 'accept' | 'decline') {
     if (respondInviteMut.isPending) return;
@@ -200,26 +202,34 @@ export default function NotificationsPage() {
     </HeaderActionButton>,
   );
 
-  const filtered = filterNotifications(notifications, filter);
+  const query = searchQuery.trim().toLowerCase();
+  const filtered = filterNotifications(notifications, filter).filter(
+    (n) =>
+      !query ||
+      n.title.toLowerCase().includes(query) ||
+      n.body.toLowerCase().includes(query),
+  );
   const groups = groupByDate(filtered);
 
   return (
     <div className="space-y-5">
       {/* 상단 요약 stat */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-md border border-surface-line bg-surface-card p-5">
+        <div className="min-w-0 rounded-md border border-surface-line bg-surface-card p-4 sm:p-5">
           <p className="text-xs text-ink-3 font-medium">안읽은 알림</p>
-          <p className="mt-1.5 text-2xl font-bold text-ink">{unreadCount}건</p>
+          <p className="mt-1.5 truncate text-lg font-bold text-ink tabular-nums sm:text-2xl">
+            {unreadCount}건
+          </p>
         </div>
-        <div className="rounded-md border border-surface-line bg-surface-card p-5">
+        <div className="min-w-0 rounded-md border border-surface-line bg-surface-card p-4 sm:p-5">
           <p className="text-xs text-ink-3 font-medium">예산 경고</p>
-          <p className="mt-1.5 text-2xl font-bold text-danger-text">
+          <p className="mt-1.5 truncate text-lg font-bold text-danger-text tabular-nums sm:text-2xl">
             {budgetWarningCount}건
           </p>
         </div>
-        <div className="rounded-md border border-surface-line bg-surface-card p-5">
+        <div className="min-w-0 rounded-md border border-surface-line bg-surface-card p-4 sm:p-5">
           <p className="text-xs text-ink-3 font-medium">정산 요청</p>
-          <p className="mt-1.5 text-2xl font-bold text-warn-text">
+          <p className="mt-1.5 truncate text-lg font-bold text-warn-text tabular-nums sm:text-2xl">
             {settlementCount}건
           </p>
         </div>
@@ -258,13 +268,15 @@ export default function NotificationsPage() {
           </span>
           <h2 className="text-lg font-semibold text-ink">새 알림 없음</h2>
           <p className="mt-2 text-sm text-ink-3">
-            {filter === 'unread'
-              ? '안읽은 알림이 없어요'
-              : filter === 'budget'
-                ? '예산 알림이 없어요'
-                : filter === 'settlement'
-                  ? '정산 알림이 없어요'
-                  : '알림이 없습니다'}
+            {query
+              ? `'${searchQuery.trim()}'에 해당하는 알림이 없어요`
+              : filter === 'unread'
+                ? '안읽은 알림이 없어요'
+                : filter === 'budget'
+                  ? '예산 알림이 없어요'
+                  : filter === 'settlement'
+                    ? '정산 알림이 없어요'
+                    : '알림이 없습니다'}
           </p>
         </div>
       ) : (

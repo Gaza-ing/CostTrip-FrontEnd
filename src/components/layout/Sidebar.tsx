@@ -21,7 +21,12 @@ import { useAppStore } from '@/stores/app-store';
 import { useAuth } from '@/lib/auth-context';
 import { useMyProfile } from '@/hooks/use-my-profile';
 import { Avatar } from '@/components/ui/Avatar';
-import { useRef, useCallback } from 'react';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
+import { ProfileEditModal } from '@/components/settings/ProfileEditModal';
+import { supabase } from '@/lib/supabase';
+import { useQueryClient } from '@tanstack/react-query';
+import { useRef, useCallback, useState } from 'react';
 import type { ElementType } from 'react';
 
 interface NavItem {
@@ -76,6 +81,11 @@ export function Sidebar({ tripId, tripTitle }: SidebarProps) {
   const { displayName, email, avatarColor } = useMyProfile();
   const { signOut } = useAuth();
   const router = useRouter();
+  const queryClient = useQueryClient();
+
+  // 프로필: 확인 모달 → 편집 모달
+  const [profileConfirmOpen, setProfileConfirmOpen] = useState(false);
+  const [profileEditOpen, setProfileEditOpen] = useState(false);
 
   async function handleSignOut() {
     await signOut();
@@ -274,14 +284,22 @@ export function Sidebar({ tripId, tripTitle }: SidebarProps) {
 
       {/* 하단: 사용자 정보 + 로그아웃 */}
       <div className="border-t border-surface-line p-4">
-        <div className="flex items-center gap-3">
-          <Avatar name={displayName} color={avatarColor} size={36} />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-ink truncate">
-              {displayName}
-            </p>
-            <p className="text-xs text-ink-3 truncate">{email}</p>
-          </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setProfileConfirmOpen(true)}
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-sm p-1 -m-1 text-left transition-colors hover:bg-surface-bg-alt"
+            aria-label="프로필 편집"
+            title="프로필 편집"
+          >
+            <Avatar name={displayName} color={avatarColor} size={36} />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-ink truncate">
+                {displayName}
+              </p>
+              <p className="text-xs text-ink-3 truncate">{email}</p>
+            </div>
+          </button>
           <button
             onClick={handleSignOut}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm text-ink-3 transition-colors hover:bg-surface-bg-alt hover:text-danger-text"
@@ -297,6 +315,49 @@ export function Sidebar({ tripId, tripTitle }: SidebarProps) {
       <div
         className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-brand/30 active:bg-brand/40 transition-colors"
         onMouseDown={handleMouseDown}
+      />
+
+      {/* 프로필 편집 여부 확인 모달 */}
+      <Modal
+        open={profileConfirmOpen}
+        onClose={() => setProfileConfirmOpen(false)}
+      >
+        <div className="p-6">
+          <h3 className="text-lg font-bold text-ink">프로필을 편집할까요?</h3>
+          <p className="mt-2 text-sm text-ink-2 leading-relaxed">
+            이름과 프로필 색을 변경할 수 있어요.
+          </p>
+          <div className="mt-6 flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setProfileConfirmOpen(false)}
+            >
+              취소
+            </Button>
+            <Button
+              onClick={() => {
+                setProfileConfirmOpen(false);
+                setProfileEditOpen(true);
+              }}
+            >
+              편집하기
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 프로필 편집 모달 */}
+      <ProfileEditModal
+        open={profileEditOpen}
+        onClose={() => setProfileEditOpen(false)}
+        initialName={displayName}
+        initialColor={avatarColor}
+        email={email}
+        onSaved={() => {
+          void supabase.auth.refreshSession();
+          queryClient.invalidateQueries({ queryKey: ['me'] });
+          queryClient.invalidateQueries({ queryKey: ['members'] });
+        }}
       />
     </aside>
   );

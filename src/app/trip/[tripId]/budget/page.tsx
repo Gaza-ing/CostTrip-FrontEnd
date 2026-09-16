@@ -172,23 +172,23 @@ function BudgetSetupForm({
     <div className="space-y-5">
       {/* 상단 stat 3개 */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-md border border-surface-line bg-surface-card p-5">
+        <div className="min-w-0 rounded-md border border-surface-line bg-surface-card p-4 sm:p-5">
           <p className="text-xs text-ink-3 font-medium">전체 예산</p>
-          <p className="mt-1.5 text-2xl font-bold text-ink">
+          <p className="mt-1.5 truncate text-lg font-bold text-ink tabular-nums sm:text-2xl">
             {formatKRW(localTotal)}
           </p>
         </div>
-        <div className="rounded-md border border-surface-line bg-surface-card p-5">
+        <div className="min-w-0 rounded-md border border-surface-line bg-surface-card p-4 sm:p-5">
           <p className="text-xs text-ink-3 font-medium">배분 합계</p>
-          <p className="mt-1.5 text-2xl font-bold text-ink">
+          <p className="mt-1.5 truncate text-lg font-bold text-ink tabular-nums sm:text-2xl">
             {formatKRW(categoryTotal)}
           </p>
         </div>
-        <div className="rounded-md border border-surface-line bg-surface-card p-5">
+        <div className="min-w-0 rounded-md border border-surface-line bg-surface-card p-4 sm:p-5">
           <p className="text-xs text-ink-3 font-medium">잔여 미배분</p>
           <p
             className={cn(
-              'mt-1.5 text-2xl font-bold',
+              'mt-1.5 truncate text-lg font-bold tabular-nums sm:text-2xl',
               remaining > 0
                 ? 'text-ok-text'
                 : remaining === 0

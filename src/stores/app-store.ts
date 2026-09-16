@@ -47,6 +47,10 @@ interface AppState {
   /** 페이지별 헤더 우측 액션 (사이드바 섹션이 바뀌면 각 페이지가 자신의 액션으로 교체) */
   headerAction: ReactNode | null;
   setHeaderAction: (action: ReactNode | null) => void;
+
+  /** 헤더 검색어 (홈=여행 검색, 알림=알림 검색). 페이지 이동 시 초기화. */
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -82,4 +86,7 @@ export const useAppStore = create<AppState>((set) => ({
 
   headerAction: null,
   setHeaderAction: (action) => set({ headerAction: action }),
+
+  searchQuery: '',
+  setSearchQuery: (query) => set({ searchQuery: query }),
 }));
