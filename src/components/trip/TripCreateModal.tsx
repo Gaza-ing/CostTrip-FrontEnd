@@ -10,10 +10,15 @@ import { useMyProfile } from '@/hooks/use-my-profile';
 import { useAppStore } from '@/stores/app-store';
 import { toast } from '@/stores/toast-store';
 import { inviteByEmail } from '@/lib/api/members';
+import {
+  useAreaBasedPlaces,
+  useSearchPlaces,
+  GWANGJU_AREA_CODE,
+} from '@/hooks/use-places';
 import { formatKRW } from '@/lib/utils';
 import { Search, ChevronDown, Lightbulb, MapPin } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 interface TripCreateModalProps {
   open: boolean;
@@ -61,6 +66,36 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
 
   const [inviteEmail, setInviteEmail] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // 목적지 검색어(입력) + 디바운스된 검색어(질의)
+  const [placeQuery, setPlaceQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(placeQuery), 250);
+    return () => clearTimeout(t);
+  }, [placeQuery]);
+
+  // 광주 대표 관광지(기본 추천) + 키워드 검색 결과
+  const { data: gwangjuPlaces } = useAreaBasedPlaces(GWANGJU_AREA_CODE, {
+    contentTypeId: '12', // 관광지
+    numRows: 12,
+  });
+  const { data: searchResults, isFetching: isSearching } =
+    useSearchPlaces(debouncedQuery);
+
+  const isSearchMode = debouncedQuery.trim().length >= 2;
+  // 검색 모드면 검색 결과, 아니면 광주 대표 추천(최대 8개)
+  const suggestions = useMemo(() => {
+    const list = isSearchMode ? (searchResults ?? []) : (gwangjuPlaces ?? []);
+    // 이름 중복 제거 후 상위 8개
+    const seen = new Set<string>();
+    const unique = list.filter((p) => {
+      if (!p.name || seen.has(p.name)) return false;
+      seen.add(p.name);
+      return true;
+    });
+    return unique.slice(0, 8);
+  }, [isSearchMode, searchResults, gwangjuPlaces]);
 
   function validate() {
     const newErrors: Record<string, string> = {};
@@ -226,10 +261,12 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
                 />
                 <input
                   type="text"
-                  placeholder="오사카, 일본"
+                  placeholder="관광지·도시 검색 (예: 무등산)"
                   value={form.destination}
                   onChange={(e) => {
-                    setForm((f) => ({ ...f, destination: e.target.value }));
+                    const v = e.target.value;
+                    setForm((f) => ({ ...f, destination: v }));
+                    setPlaceQuery(v);
                     setErrors((prev) => ({ ...prev, destination: '' }));
                   }}
                   className="h-10 w-full rounded-xs border border-surface-line bg-surface-card pl-9 pr-3 text-sm text-ink placeholder:text-ink-3 focus:outline-none focus:ring-2 focus:ring-brand"
@@ -240,25 +277,41 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
                   {errors.destination}
                 </p>
               )}
-              {/* 프리셋 칩 */}
-              <div className="mt-2 flex flex-wrap gap-2">
-                {['오사카', '도쿄', '강릉', '제주'].map((name) => (
-                  <button
-                    key={name}
-                    type="button"
-                    onClick={() =>
-                      setForm((f) => ({ ...f, destination: name }))
-                    }
-                    className={`flex items-center gap-1.5 rounded-pill border px-3 py-1.5 text-sm transition-colors ${
-                      form.destination === name
-                        ? 'border-brand bg-brand-soft text-brand-dark font-medium'
-                        : 'border-surface-line text-ink-2 hover:bg-surface-bg-alt'
-                    }`}
-                  >
-                    <MapPin size={13} className="shrink-0" />
-                    {name}
-                  </button>
-                ))}
+
+              {/* 추천/검색 칩 (한국관광공사 TourAPI) */}
+              <div className="mt-2">
+                <p className="mb-1.5 text-xs text-ink-3">
+                  {isSearchMode
+                    ? isSearching
+                      ? '검색 중…'
+                      : suggestions.length > 0
+                        ? '검색 결과'
+                        : '검색 결과가 없어요'
+                    : '광주 추천 관광지'}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {suggestions.map((place) => (
+                    <button
+                      key={place.externalId || place.name}
+                      type="button"
+                      onClick={() => {
+                        setForm((f) => ({ ...f, destination: place.name }));
+                        setPlaceQuery('');
+                        setDebouncedQuery('');
+                        setErrors((prev) => ({ ...prev, destination: '' }));
+                      }}
+                      className={`flex items-center gap-1.5 rounded-pill border px-3 py-1.5 text-sm transition-colors ${
+                        form.destination === place.name
+                          ? 'border-brand bg-brand-soft text-brand-dark font-medium'
+                          : 'border-surface-line text-ink-2 hover:bg-surface-bg-alt'
+                      }`}
+                      title={place.address ?? undefined}
+                    >
+                      <MapPin size={13} className="shrink-0" />
+                      {place.name}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
