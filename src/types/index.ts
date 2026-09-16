@@ -50,6 +50,7 @@ export interface PlanItem {
   endTime?: string;
   latitude?: number;
   longitude?: number;
+  placeName?: string;
   sortOrder: number;
 }
 

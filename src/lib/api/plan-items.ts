@@ -19,6 +19,9 @@ interface BackendPlanItem {
   startTime: string | null;
   endTime: string | null;
   estimatedAmount: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  placeName: string | null;
   memo: string | null;
   sortOrder: number;
 }
@@ -51,8 +54,9 @@ function normalize(p: BackendPlanItem): PlanItem {
     estimatedCost: p.estimatedAmount ?? 0,
     startTime: isoToHm(p.startTime),
     endTime: isoToHm(p.endTime),
-    latitude: undefined,
-    longitude: undefined,
+    latitude: p.latitude ?? undefined,
+    longitude: p.longitude ?? undefined,
+    placeName: p.placeName ?? undefined,
     sortOrder: p.sortOrder,
   };
 }
@@ -74,6 +78,9 @@ export interface PlanItemInput {
   estimatedCost?: number;
   startTime?: string; // "HH:mm"
   endTime?: string; // "HH:mm"
+  latitude?: number | null;
+  longitude?: number | null;
+  placeName?: string | null;
   memo?: string;
   sortOrder?: number;
 }
@@ -93,6 +100,9 @@ export async function createPlanItem(
       startTime: hmToIso(input.startTime, dayDate),
       endTime: hmToIso(input.endTime, dayDate),
       estimatedAmount: input.estimatedCost ?? null,
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
+      placeName: input.placeName ?? null,
       memo: input.memo ?? null,
       sortOrder: input.sortOrder ?? 0,
     },
@@ -117,6 +127,9 @@ export async function updatePlanItem(
     body.startTime = hmToIso(patch.startTime, dayDate);
   if (patch.endTime !== undefined)
     body.endTime = hmToIso(patch.endTime, dayDate);
+  if (patch.latitude !== undefined) body.latitude = patch.latitude;
+  if (patch.longitude !== undefined) body.longitude = patch.longitude;
+  if (patch.placeName !== undefined) body.placeName = patch.placeName;
   if (patch.memo !== undefined) body.memo = patch.memo;
   if (patch.sortOrder !== undefined) body.sortOrder = patch.sortOrder;
 
