@@ -51,7 +51,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { PlanItem } from '@/types';
 
@@ -88,6 +88,13 @@ export default function DayPlanPage() {
   const params = useParams();
   const tripId = params.tripId as string;
   const dayIndex = parseInt(params.dayIndex as string);
+  const router = useRouter();
+
+  // 일정 추가 페이지(지도 기반)로 이동
+  const addHref = `/trip/${tripId}/plan/${dayIndex}/add`;
+  function goToAddPage() {
+    router.push(addHref);
+  }
 
   // 여행 정보(기간)
   const { data: trip } = useTrip(tripId);
@@ -186,17 +193,6 @@ export default function DayPlanPage() {
   // D-day 라벨: 클라이언트에서만 정확한 값 (suppressHydrationWarning으로 처리)
   const dayLabel = getDayLabelFromStart(dayIndex, tripStartDate);
   const [panelForm, setPanelForm] = useState<PlanForm>(EMPTY_FORM);
-
-  function openAddPanel() {
-    setEditingItem(null);
-    setPanelForm(EMPTY_FORM);
-    setPanelOpen(true);
-    setEditMode({
-      active: true,
-      title: `일정 편집 · Day ${dayIndex + 1}`,
-      subtitle: editSubtitle,
-    });
-  }
 
   function openEditPanel(item: PlanItem) {
     setEditingItem(item);
@@ -345,13 +341,13 @@ export default function DayPlanPage() {
     }
   }
 
-  // 헤더 우측 액션: 날짜별 계획 전용 "+ 항목 추가" 버튼
+  // 헤더 우측 액션: 일정 추가 페이지로 이동
   useHeaderAction(
-    <HeaderActionButton onClick={openAddPanel}>
+    <HeaderActionButton onClick={goToAddPage}>
       <Plus size={16} />
       항목 추가
     </HeaderActionButton>,
-    [dayIndex],
+    [dayIndex, addHref],
   );
 
   return (
@@ -410,14 +406,17 @@ export default function DayPlanPage() {
 
           {items.length === 0 ? (
             <Card className="py-12 text-center">
-              <p className="text-sm text-ink-3">아직 일정이 없습니다</p>
+              <p className="text-sm text-ink-3">
+                Day {dayIndex + 1}에 등록된 일정이 없어요
+              </p>
               <Button
                 variant="ghost"
                 size="sm"
                 className="mt-3"
-                onClick={openAddPanel}
+                onClick={goToAddPage}
               >
-                <Plus size={14} className="mr-1" />첫 일정 추가하기
+                <Plus size={14} className="mr-1" />
+                Day {dayIndex + 1} 일정 추가하기
               </Button>
             </Card>
           ) : (
@@ -457,18 +456,18 @@ export default function DayPlanPage() {
             <div className="flex items-start gap-2 rounded-sm bg-danger-soft px-4 py-3 text-sm text-danger-text">
               <AlertCircle size={16} className="mt-0.5 shrink-0" />
               <span>
-                쇼핑 예산이 이미 초과 상태(113%)예요. 신사이바시 일정의 지출에
+                쇼핑 예산이 이미 초과 상태(113%)예요. 쇼핑 일정의 지출에
                 주의하세요.
               </span>
             </div>
           )}
 
-          {/* 일정 추가 버튼 */}
+          {/* 일정 추가 버튼 → 일정 추가 페이지로 이동 */}
           <Button
             variant="secondary"
             fullWidth
             className="border-dashed"
-            onClick={openAddPanel}
+            onClick={goToAddPage}
           >
             <Plus size={14} className="mr-1.5" />
             Day {dayIndex + 1} 일정 추가

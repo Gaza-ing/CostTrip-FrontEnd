@@ -2,6 +2,7 @@
 
 import { X, Plus, CircleDollarSign } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
+import { Select } from '@/components/ui/Select';
 import { CATEGORIES } from '@/lib/constants';
 import { CategoryIcon } from '@/lib/category-icons';
 import { formatKRW, cn } from '@/lib/utils';
@@ -152,7 +153,7 @@ export default function ExpenseAddPage() {
             </label>
             <input
               type="text"
-              placeholder="예: 도톤보리 타코야키"
+              placeholder="예: 1913송정역시장 간식"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className={cn(
@@ -198,17 +199,16 @@ export default function ExpenseAddPage() {
             <label className="mb-2 block text-xs font-medium text-ink-3">
               결제자
             </label>
-            <select
+            <Select
+              aria-label="결제자"
               value={effectivePaidBy}
-              onChange={(e) => setPaidByMemberId(e.target.value)}
-              className="h-11 w-full rounded-sm border border-surface-line bg-surface-card px-4 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
-            >
-              {effectiveMembers.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.displayName}
-                </option>
-              ))}
-            </select>
+              onChange={setPaidByMemberId}
+              triggerClassName="h-11 px-4"
+              options={effectiveMembers.map((m) => ({
+                value: m.id,
+                label: m.displayName,
+              }))}
+            />
           </div>
 
           <div>

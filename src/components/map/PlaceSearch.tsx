@@ -99,7 +99,7 @@ export function PlaceSearch({
         <div className="flex-1">
           <Input
             label={label}
-            placeholder="장소명 검색 (예: 오사카성)"
+            placeholder="장소명 검색 (예: 국립아시아문화전당)"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             onKeyDown={handleKeyDown}

@@ -55,3 +55,39 @@ export function areaCodes(parent?: string): Promise<AreaCode[]> {
     params: { parent },
   });
 }
+
+/** 비용 추정 응답 (백엔드 estimate_cost). */
+export interface CostEstimate {
+  /** 추정 금액(원). null = 추정 불가 */
+  amount: number | null;
+  /** api = 관광공사 실측, category = 카테고리 기본값 */
+  source: 'api' | 'category' | null;
+  currency: string;
+}
+
+/** 통일 카테고리 → 대표 TourAPI contentTypeId (비용 추정 힌트용). */
+const CATEGORY_TO_CONTENT_TYPE: Record<string, string> = {
+  sightseeing: '12',
+  lodging: '32',
+  food: '39',
+  shopping: '38',
+  // transport/etc는 대응 타입이 마땅치 않아 관광지로 폴백
+};
+
+/** Place.category → contentTypeId (없으면 관광지 12). */
+export function contentTypeIdForCategory(category: string): string {
+  return CATEGORY_TO_CONTENT_TYPE[category] ?? '12';
+}
+
+/**
+ * 장소 예상 비용 추정 (3단 폴백 중 API→카테고리).
+ * contentId는 TourAPI 장소의 externalId, contentTypeId는 관광타입.
+ */
+export function estimatePlaceCost(
+  contentId: string,
+  contentTypeId: string,
+): Promise<CostEstimate> {
+  return apiClient.get<CostEstimate>(`/places/estimate-cost/${contentId}`, {
+    params: { contentTypeId },
+  });
+}
