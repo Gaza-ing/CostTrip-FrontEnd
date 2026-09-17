@@ -3,8 +3,10 @@ import { fetchDays } from '@/lib/api/days';
 import {
   fetchPlanItems,
   createPlanItem,
+  createPlanItemsBulk,
   updatePlanItem,
   deletePlanItem,
+  fetchDaySummary,
   type PlanItemInput,
 } from '@/lib/api/plan-items';
 
@@ -41,6 +43,9 @@ export function useCreatePlanItem(tripId: string, dayId: string) {
       queryClient.invalidateQueries({
         queryKey: ['plan-items', tripId, dayId],
       });
+      queryClient.invalidateQueries({
+        queryKey: ['day-summary', tripId, dayId],
+      });
     },
   });
 }
@@ -74,6 +79,45 @@ export function useDeletePlanItem(tripId: string, dayId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['plan-items', tripId, dayId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['day-summary', tripId, dayId],
+      });
+    },
+  });
+}
+
+/** Day 요약 (항목수/이동/거리/시간/합계비용) */
+export function useDaySummary(tripId: string, dayId: string | undefined) {
+  return useQuery({
+    queryKey: ['day-summary', tripId, dayId],
+    queryFn: () => fetchDaySummary(tripId, dayId as string),
+    enabled: !!tripId && !!dayId,
+  });
+}
+
+/** 여러 날에 동일 일정 항목 추가 (벌크) */
+export function useCreatePlanItemsBulk(tripId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      dayIds,
+      input,
+      dayDate,
+    }: {
+      dayIds: string[];
+      input: PlanItemInput;
+      dayDate?: string;
+    }) => createPlanItemsBulk(tripId, dayIds, input, dayDate),
+    onSuccess: (_data, variables) => {
+      // 영향받은 각 Day의 일정 목록 + 요약 캐시 무효화
+      variables.dayIds.forEach((dayId) => {
+        queryClient.invalidateQueries({
+          queryKey: ['plan-items', tripId, dayId],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ['day-summary', tripId, dayId],
+        });
       });
     },
   });

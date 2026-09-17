@@ -40,7 +40,7 @@ export default function ComponentsDevPage() {
         {/* Input */}
         <Section title="Input">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Input label="여행 이름" placeholder="오사카 우정여행" />
+            <Input label="여행 이름" placeholder="광주 우정여행" />
             <Input
               label="전체 예산"
               placeholder="2,400,000"
@@ -60,7 +60,7 @@ export default function ComponentsDevPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>오사카 우정여행</CardTitle>
+                <CardTitle>광주 우정여행</CardTitle>
                 <Badge variant="brand">D-12</Badge>
               </CardHeader>
               <p className="text-sm text-ink-2">

@@ -2,6 +2,7 @@
 
 import { Lightbulb, CircleDollarSign } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
+import { Select } from '@/components/ui/Select';
 import { HeaderActionButton } from '@/components/layout';
 import { useHeaderAction } from '@/hooks/use-header-action';
 import { CATEGORIES } from '@/lib/constants';
@@ -239,12 +240,14 @@ function BudgetSetupForm({
                 <label className="mb-1.5 block text-xs font-medium text-ink-3">
                   통화
                 </label>
-                <select
+                <Select
+                  aria-label="통화"
                   disabled
-                  className="h-11 w-full rounded-sm border border-surface-line bg-surface-bg px-3 text-sm text-ink-2 cursor-not-allowed"
-                >
-                  <option>KRW (₩)</option>
-                </select>
+                  value="KRW"
+                  onChange={() => {}}
+                  triggerClassName="h-11"
+                  options={[{ value: 'KRW', label: 'KRW (₩)' }]}
+                />
               </div>
             </div>
           </Card>

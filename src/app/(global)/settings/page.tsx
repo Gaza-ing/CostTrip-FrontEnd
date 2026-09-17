@@ -14,6 +14,7 @@ import {
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
 import { Avatar } from '@/components/ui/Avatar';
 import { ProfileEditModal } from '@/components/settings/ProfileEditModal';
 import { cn } from '@/lib/utils';
@@ -287,12 +288,13 @@ export default function SettingsPage() {
                   <p className="text-xs font-medium text-ink-3 mb-1.5">
                     기본 통화
                   </p>
-                  <select
+                  <Select
+                    aria-label="기본 통화"
                     disabled
-                    className="h-10 w-full rounded-sm border border-surface-line bg-surface-card px-3 text-sm text-ink opacity-70 cursor-not-allowed"
-                  >
-                    <option>대한민국 원 (KRW) ₩</option>
-                  </select>
+                    value="KRW"
+                    onChange={() => {}}
+                    options={[{ value: 'KRW', label: '대한민국 원 (KRW) ₩' }]}
+                  />
                 </div>
                 <span className="mb-1 inline-flex items-center gap-1 rounded-pill border border-dashed border-surface-line-strong px-3 py-1.5 text-[11px] text-ink-3">
                   <CircleDollarSign size={13} />

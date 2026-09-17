@@ -3,6 +3,7 @@
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
 import { SlidePanel } from '@/components/ui/SlidePanel';
 import { HeaderActionButton } from '@/components/layout';
 import { useHeaderAction } from '@/hooks/use-header-action';
@@ -57,6 +58,8 @@ export default function MembersPage() {
   // 이메일 초대 폼
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'editor' | 'viewer'>('editor');
+  // 초대 링크 기본 권한(표시용). 서버 연동 전까지 로컬 상태로 유지.
+  const [linkDefaultRole, setLinkDefaultRole] = useState('editor');
   const inviteByEmailMut = useInviteByEmail(tripId);
 
   // 멤버 행 액션 드롭다운 / 정보 보기 / 내보내기 확인 모달
@@ -306,19 +309,19 @@ export default function MembersPage() {
                         {m.role}
                       </Badge>
                     ) : (
-                      <select
+                      <Select
+                        aria-label="멤버 역할"
                         value={m.role}
-                        onChange={(e) =>
-                          handleRoleChange(
-                            m.id,
-                            e.target.value as 'editor' | 'viewer',
-                          )
+                        onChange={(v) =>
+                          handleRoleChange(m.id, v as 'editor' | 'viewer')
                         }
-                        className="h-8 rounded-sm border border-surface-line bg-surface-card px-2 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-brand"
-                      >
-                        <option value="editor">editor</option>
-                        <option value="viewer">viewer</option>
-                      </select>
+                        className="w-28"
+                        triggerClassName="h-8 px-2 text-xs"
+                        options={[
+                          { value: 'editor', label: 'editor' },
+                          { value: 'viewer', label: 'viewer' },
+                        ]}
+                      />
                     )}
                   </div>
 
@@ -567,16 +570,15 @@ export default function MembersPage() {
               </div>
               <div>
                 <p className="text-xs font-medium text-ink-3 mb-2">기본 권한</p>
-                <select
+                <Select
+                  aria-label="기본 권한"
                   value={inviteRole}
-                  onChange={(e) =>
-                    setInviteRole(e.target.value as 'editor' | 'viewer')
-                  }
-                  className="h-10 w-full rounded-sm border border-surface-line bg-surface-card px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
-                >
-                  <option value="editor">editor (지출 편집 가능)</option>
-                  <option value="viewer">viewer (조회만)</option>
-                </select>
+                  onChange={(v) => setInviteRole(v as 'editor' | 'viewer')}
+                  options={[
+                    { value: 'editor', label: 'editor (지출 편집 가능)' },
+                    { value: 'viewer', label: 'viewer (조회만)' },
+                  ]}
+                />
               </div>
               <Button
                 fullWidth
@@ -622,10 +624,15 @@ export default function MembersPage() {
             <>
               <div>
                 <p className="text-xs font-medium text-ink-3 mb-2">기본 권한</p>
-                <select className="h-10 w-full rounded-sm border border-surface-line bg-surface-card px-3 pr-8 text-sm text-ink appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23929AAC%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[right_12px_center] bg-no-repeat focus:outline-none focus:ring-2 focus:ring-brand">
-                  <option>editor (지출 편집 가능)</option>
-                  <option>viewer (조회만)</option>
-                </select>
+                <Select
+                  aria-label="기본 권한"
+                  value={linkDefaultRole}
+                  onChange={setLinkDefaultRole}
+                  options={[
+                    { value: 'editor', label: 'editor (지출 편집 가능)' },
+                    { value: 'viewer', label: 'viewer (조회만)' },
+                  ]}
+                />
               </div>
 
               <p className="text-[11px] text-ink-3 leading-relaxed">

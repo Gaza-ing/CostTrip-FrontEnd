@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
+import { Select } from '@/components/ui/Select';
 import { Avatar } from '@/components/ui/Avatar';
 import { useCreateTrip } from '@/hooks/use-trips';
 import { useMe } from '@/hooks/use-auth-user';
@@ -289,7 +290,7 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
             {/* 여행 이름 */}
             <Input
               label="여행 이름"
-              placeholder="오사카 우정여행"
+              placeholder="광주 우정여행"
               value={form.title}
               onChange={(e) =>
                 setForm((f) => ({ ...f, title: e.target.value }))
@@ -474,19 +475,19 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
                         소유자
                       </span>
                     ) : (
-                      <select
+                      <Select
+                        aria-label="멤버 역할"
                         value={member.role}
-                        onChange={(e) =>
-                          handleRoleChange(
-                            member.id,
-                            e.target.value as 'editor' | 'viewer',
-                          )
+                        onChange={(v) =>
+                          handleRoleChange(member.id, v as 'editor' | 'viewer')
                         }
-                        className="shrink-0 rounded-xs border border-surface-line bg-surface-card px-2 py-1 text-xs text-ink-2 focus:outline-none focus:ring-2 focus:ring-brand"
-                      >
-                        <option value="editor">편집</option>
-                        <option value="viewer">보기</option>
-                      </select>
+                        className="w-24 shrink-0"
+                        triggerClassName="h-8 px-2 text-xs"
+                        options={[
+                          { value: 'editor', label: '편집' },
+                          { value: 'viewer', label: '보기' },
+                        ]}
+                      />
                     )}
                   </div>
                 ))}

@@ -1,5 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
-import { searchPlaces, areaBasedPlaces, areaCodes } from '@/lib/api/places';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import {
+  searchPlaces,
+  areaBasedPlaces,
+  areaCodes,
+  estimatePlaceCost,
+} from '@/lib/api/places';
 
 /** 광주 지역코드 (TourAPI 표준). 지역특색형 기본 추천에 사용. */
 export const GWANGJU_AREA_CODE = '5';
@@ -47,5 +52,21 @@ export function useAreaCodes(parent?: string) {
     queryKey: ['places', 'area-codes', parent ?? null],
     queryFn: () => areaCodes(parent),
     staleTime: Infinity, // 지역코드는 사실상 불변
+  });
+}
+
+/**
+ * 장소 예상 비용 추정 (선택 시점에 명령형 호출).
+ * mutateAsync로 호출해 폼 "예상 비용"을 프리필한다.
+ */
+export function useEstimatePlaceCost() {
+  return useMutation({
+    mutationFn: ({
+      contentId,
+      contentTypeId,
+    }: {
+      contentId: string;
+      contentTypeId: string;
+    }) => estimatePlaceCost(contentId, contentTypeId),
   });
 }

@@ -57,8 +57,8 @@ export const useAppStore = create<AppState>((set) => ({
   currentTripId: null,
   setCurrentTrip: (tripId) => set({ currentTripId: tripId }),
 
-  tripTitle: '오사카 우정여행',
-  tripDestination: '오사카',
+  tripTitle: '광주 우정여행',
+  tripDestination: '광주',
   tripHeadcount: 4,
   setTripInfo: (info) =>
     set({

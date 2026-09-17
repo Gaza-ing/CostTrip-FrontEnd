@@ -147,3 +147,52 @@ export async function deletePlanItem(
 ): Promise<void> {
   await apiClient.delete<void>(`/trips/${tripId}/items/${itemId}`);
 }
+
+/** Day 요약 (일정 추가 페이지 하단 바). */
+export interface DaySummary {
+  itemCount: number;
+  moveCount: number;
+  distanceKm: number;
+  durationMin: number;
+  totalEstimated: number;
+  currency: string;
+}
+
+/** 일자 요약: 항목수/이동/거리/시간/합계비용. */
+export function fetchDaySummary(
+  tripId: string,
+  dayId: string,
+): Promise<DaySummary> {
+  return apiClient.get<DaySummary>(`/trips/${tripId}/days/${dayId}/summary`);
+}
+
+/**
+ * 여러 날에 동일 일정 항목을 한번에 추가 ("여러 날에 추가" 토글).
+ * 백엔드: POST /trips/{tripId}/days/items:bulk { dayIds, item }
+ */
+export async function createPlanItemsBulk(
+  tripId: string,
+  dayIds: string[],
+  input: PlanItemInput,
+  dayDate?: string,
+): Promise<PlanItem[]> {
+  const created = await apiClient.post<BackendPlanItem[]>(
+    `/trips/${tripId}/days/items:bulk`,
+    {
+      dayIds,
+      item: {
+        title: input.title,
+        type: toBackendCategory(input.categoryId),
+        startTime: hmToIso(input.startTime, dayDate),
+        endTime: hmToIso(input.endTime, dayDate),
+        estimatedAmount: input.estimatedCost ?? null,
+        latitude: input.latitude ?? null,
+        longitude: input.longitude ?? null,
+        placeName: input.placeName ?? null,
+        memo: input.memo ?? null,
+        sortOrder: input.sortOrder ?? 0,
+      },
+    },
+  );
+  return created.map(normalize);
+}

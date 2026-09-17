@@ -4,5 +4,8 @@ export { Card, CardHeader, CardTitle } from './Card';
 export { Badge } from './Badge';
 export { ProgressBar } from './ProgressBar';
 export { Modal } from './Modal';
+export { ConfirmModal } from './ConfirmModal';
 export { SlidePanel } from './SlidePanel';
+export { Select, type SelectOption } from './Select';
+export { TimeSelect } from './TimeSelect';
 export { Avatar, AVATAR_COLORS, avatarColor, initialOf } from './Avatar';
