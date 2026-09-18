@@ -5,6 +5,13 @@ import { Search, MapPin, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { loadKakaoMap, hasKakaoKey } from '@/lib/kakao-map';
+import {
+  searchPlaces,
+  contentTypeIdForPlace,
+  type Place,
+} from '@/lib/api/places';
+import { toFrontCategory } from '@/lib/category';
+import { CATEGORIES } from '@/lib/constants';
 
 /** 장소 검색으로 선택된 결과. */
 export interface SelectedPlace {
@@ -12,6 +19,14 @@ export interface SelectedPlace {
   address: string;
   lat: number;
   lng: number;
+  /** 어느 소스에서 골랐는지. tour = 관광공사(실측 요금 조회 가능). */
+  source: 'tour' | 'kakao';
+  /** TourAPI 장소 고유 ID (source=tour일 때만). 비용 실측 조회에 사용. */
+  externalId?: string;
+  /** TourAPI 관광타입 (source=tour일 때만). */
+  contentTypeId?: string;
+  /** 통일 카테고리 (source=tour일 때만). 폼 카테고리 프리필용. */
+  category?: string;
 }
 
 interface PlaceSearchProps {
@@ -23,11 +38,48 @@ interface PlaceSearchProps {
   defaultKeyword?: string;
 }
 
+type SearchState = 'idle' | 'searching' | 'empty' | 'error';
+
+/** 카카오 결과를 SelectedPlace 형태로. */
+function kakaoToSelected(
+  item: kakao.maps.services.PlacesSearchResultItem,
+): SelectedPlace {
+  return {
+    name: item.place_name,
+    address: item.road_address_name || item.address_name,
+    lat: parseFloat(item.y),
+    lng: parseFloat(item.x),
+    source: 'kakao',
+  };
+}
+
+/** TourAPI Place를 SelectedPlace 형태로. */
+function tourToSelected(place: Place): SelectedPlace {
+  return {
+    name: place.name,
+    address: place.address ?? '',
+    lat: place.latitude,
+    lng: place.longitude,
+    source: 'tour',
+    externalId: place.externalId,
+    contentTypeId: contentTypeIdForPlace(place),
+    category: place.category,
+  };
+}
+
+/** 통일 카테고리 → 한글 라벨 (관광/숙소 등). */
+function categoryLabel(backendKey: string): string {
+  const frontId = toFrontCategory(backendKey);
+  return CATEGORIES.find((c) => c.id === frontId)?.label ?? '기타';
+}
+
 /**
- * 카카오 장소 검색(키워드) 컴포넌트.
+ * 장소 검색 컴포넌트 — 관광공사(TourAPI) 우선, 카카오 폴백.
  *
- * - 키워드로 검색해 결과 목록을 보여주고, 선택하면 좌표를 onSelect로 넘긴다.
- * - 카카오 키가 없으면 검색 기능을 비활성화하고 안내한다.
+ * - 먼저 백엔드 TourAPI 검색으로 관광지/문화시설/숙박 등을 찾는다.
+ *   이 결과는 장소 ID(contentId)를 가지므로 실측 요금을 조회할 수 있다.
+ * - TourAPI 결과가 없으면(일반 식당·카페 등) 카카오 지도 검색으로 폴백한다.
+ *   카카오 결과는 좌표만 잡고 요금은 카테고리 힌트로 처리된다.
  */
 export function PlaceSearch({
   onSelect,
@@ -35,43 +87,68 @@ export function PlaceSearch({
   defaultKeyword = '',
 }: PlaceSearchProps) {
   const [keyword, setKeyword] = useState(defaultKeyword);
-  const [results, setResults] = useState<
+  const [tourResults, setTourResults] = useState<Place[]>([]);
+  const [kakaoResults, setKakaoResults] = useState<
     kakao.maps.services.PlacesSearchResultItem[]
   >([]);
-  const [state, setState] = useState<'idle' | 'searching' | 'empty' | 'error'>(
-    'idle',
-  );
+  const [state, setState] = useState<SearchState>('idle');
+  /** 카카오 폴백을 썼는지(안내 문구용). */
+  const [usedKakaoFallback, setUsedKakaoFallback] = useState(false);
   const placesRef = useRef<kakao.maps.services.Places | null>(null);
-  const keyMissing = !hasKakaoKey();
+
+  /** 카카오 키워드 검색(폴백). 콜백 API를 Promise로 정리. */
+  async function kakaoSearch(
+    q: string,
+  ): Promise<kakao.maps.services.PlacesSearchResultItem[]> {
+    if (!hasKakaoKey()) throw new Error('no-kakao-key');
+    const kakao = await loadKakaoMap();
+    if (!placesRef.current) {
+      placesRef.current = new kakao.maps.services.Places();
+    }
+    return new Promise((resolve) => {
+      placesRef.current!.keywordSearch(q, (data, status) => {
+        // ZERO_RESULT/ERROR 모두 빈 배열로 정규화(폴백 실패는 empty로 표시)
+        resolve(status === kakao.maps.services.Status.OK ? data : []);
+      });
+    });
+  }
 
   async function runSearch() {
     const q = keyword.trim();
     if (!q) return;
-    if (keyMissing) {
-      setState('error');
-      return;
-    }
 
     setState('searching');
+    setTourResults([]);
+    setKakaoResults([]);
+    setUsedKakaoFallback(false);
+
+    // 1) TourAPI 우선
     try {
-      const kakao = await loadKakaoMap();
-      if (!placesRef.current) {
-        placesRef.current = new kakao.maps.services.Places();
+      const tour = await searchPlaces(q);
+      if (tour.length > 0) {
+        setTourResults(tour);
+        setState('idle');
+        return;
       }
-      placesRef.current.keywordSearch(q, (data, status) => {
-        if (status === kakao.maps.services.Status.OK) {
-          setResults(data);
-          setState('idle');
-        } else if (status === kakao.maps.services.Status.ZERO_RESULT) {
-          setResults([]);
-          setState('empty');
-        } else {
-          setResults([]);
-          setState('error');
-        }
-      });
     } catch {
-      setState('error');
+      // TourAPI 실패는 조용히 카카오 폴백으로 넘어감
+    }
+
+    // 2) 카카오 폴백
+    try {
+      const kakao = await kakaoSearch(q);
+      setUsedKakaoFallback(true);
+      if (kakao.length > 0) {
+        setKakaoResults(kakao);
+        setState('idle');
+      } else {
+        setState('empty');
+      }
+    } catch (e) {
+      // 카카오 키 없음 등
+      setState(
+        e instanceof Error && e.message === 'no-kakao-key' ? 'empty' : 'error',
+      );
     }
   }
 
@@ -82,16 +159,21 @@ export function PlaceSearch({
     }
   }
 
-  function pick(item: kakao.maps.services.PlacesSearchResultItem) {
-    onSelect({
-      name: item.place_name,
-      address: item.road_address_name || item.address_name,
-      lat: parseFloat(item.y),
-      lng: parseFloat(item.x),
-    });
-    setResults([]);
+  function pickTour(place: Place) {
+    onSelect(tourToSelected(place));
+    setTourResults([]);
+    setKakaoResults([]);
+    setKeyword(place.name);
+  }
+
+  function pickKakao(item: kakao.maps.services.PlacesSearchResultItem) {
+    onSelect(kakaoToSelected(item));
+    setTourResults([]);
+    setKakaoResults([]);
     setKeyword(item.place_name);
   }
+
+  const hasResults = tourResults.length > 0 || kakaoResults.length > 0;
 
   return (
     <div>
@@ -103,14 +185,13 @@ export function PlaceSearch({
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             onKeyDown={handleKeyDown}
-            hint={keyMissing ? '카카오 지도 키가 필요합니다' : undefined}
           />
         </div>
         <Button
           type="button"
           variant="secondary"
           onClick={runSearch}
-          disabled={state === 'searching' || keyMissing}
+          disabled={state === 'searching'}
           className="mb-[1px] shrink-0"
         >
           {state === 'searching' ? (
@@ -127,34 +208,79 @@ export function PlaceSearch({
       )}
       {state === 'error' && (
         <p className="mt-2 text-xs text-danger-text">
-          {keyMissing
-            ? '카카오 지도 키(NEXT_PUBLIC_KAKAO_MAP_APP_KEY)가 설정되지 않았습니다.'
-            : '검색 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요.'}
+          검색 중 오류가 발생했어요. 잠시 후 다시 시도해 주세요.
         </p>
       )}
 
-      {results.length > 0 && (
+      {/* TourAPI 결과 (실측 요금 조회 가능) */}
+      {tourResults.length > 0 && (
         <ul className="mt-2 max-h-52 divide-y divide-surface-line overflow-y-auto rounded-sm border border-surface-line bg-surface-card">
-          {results.map((item) => (
-            <li key={item.id}>
+          {tourResults.map((place) => (
+            <li key={`tour-${place.externalId}`}>
               <button
                 type="button"
-                onClick={() => pick(item)}
+                onClick={() => pickTour(place)}
                 className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-surface-bg-alt transition-colors"
               >
                 <MapPin size={14} className="mt-0.5 shrink-0 text-brand" />
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium text-ink">
-                    {item.place_name}
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1.5">
+                    <span className="truncate text-sm font-medium text-ink">
+                      {place.name}
+                    </span>
+                    <span className="shrink-0 rounded-pill bg-brand-tint px-1.5 py-0.5 text-[10px] font-medium text-brand">
+                      {categoryLabel(place.category)}
+                    </span>
                   </span>
-                  <span className="block truncate text-xs text-ink-3">
-                    {item.road_address_name || item.address_name}
-                  </span>
+                  {place.address && (
+                    <span className="block truncate text-xs text-ink-3">
+                      {place.address}
+                    </span>
+                  )}
                 </span>
               </button>
             </li>
           ))}
         </ul>
+      )}
+
+      {/* 카카오 폴백 결과 (좌표만) */}
+      {kakaoResults.length > 0 && (
+        <>
+          {usedKakaoFallback && (
+            <p className="mt-2 text-[11px] text-ink-3">
+              관광정보에 없는 장소예요. 지도 검색 결과를 보여드릴게요(요금은
+              직접 입력).
+            </p>
+          )}
+          <ul className="mt-1 max-h-52 divide-y divide-surface-line overflow-y-auto rounded-sm border border-surface-line bg-surface-card">
+            {kakaoResults.map((item) => (
+              <li key={`kakao-${item.id}`}>
+                <button
+                  type="button"
+                  onClick={() => pickKakao(item)}
+                  className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-surface-bg-alt transition-colors"
+                >
+                  <MapPin size={14} className="mt-0.5 shrink-0 text-ink-3" />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-ink">
+                      {item.place_name}
+                    </span>
+                    <span className="block truncate text-xs text-ink-3">
+                      {item.road_address_name || item.address_name}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {!hasResults && state === 'idle' && keyword.trim() && (
+        <p className="mt-2 text-[11px] text-ink-3">
+          검색 버튼을 눌러 장소를 찾아보세요.
+        </p>
       )}
     </div>
   );

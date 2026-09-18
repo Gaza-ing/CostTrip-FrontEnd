@@ -51,8 +51,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import type { PlanItem } from '@/types';
 
 interface PlanForm {
@@ -89,6 +89,7 @@ export default function DayPlanPage() {
   const tripId = params.tripId as string;
   const dayIndex = parseInt(params.dayIndex as string);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // 일정 추가 페이지(지도 기반)로 이동
   const addHref = `/trip/${tripId}/plan/${dayIndex}/add`;
@@ -222,6 +223,22 @@ export default function DayPlanPage() {
     setPanelForm(EMPTY_FORM);
     clearEditMode();
   }
+
+  // ?edit={itemId} 로 진입하면(예: 일정 추가 페이지에서 항목 클릭) 해당 항목
+  // 편집 패널을 자동으로 연다. 연 뒤 쿼리를 제거해 재오픈을 막는다.
+  const editItemId = searchParams.get('edit');
+  useEffect(() => {
+    if (!editItemId || serverItems.length === 0) return;
+    const target = serverItems.find((i) => i.id === editItemId);
+    if (target) {
+      // URL(외부 상태) → 편집 패널 오픈 동기화. 직후 쿼리를 지워 재진입을 막는다.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      openEditPanel(target);
+      router.replace(`/trip/${tripId}/plan/${dayIndex}`);
+    }
+    // openEditPanel/router는 안정적 참조라 의존성에서 제외
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editItemId, serverItems]);
 
   /** 검색 결과에서 장소를 선택하면 폼에 좌표를 채운다. */
   function handlePlaceSelect(place: SelectedPlace) {

@@ -7,6 +7,8 @@ import {
   updatePlanItem,
   deletePlanItem,
   fetchDaySummary,
+  fetchGapSuggestions,
+  fetchRouteLegs,
   type PlanItemInput,
 } from '@/lib/api/plan-items';
 
@@ -46,6 +48,9 @@ export function useCreatePlanItem(tripId: string, dayId: string) {
       queryClient.invalidateQueries({
         queryKey: ['day-summary', tripId, dayId],
       });
+      queryClient.invalidateQueries({
+        queryKey: ['gap-suggestions', tripId, dayId],
+      });
     },
   });
 }
@@ -83,6 +88,9 @@ export function useDeletePlanItem(tripId: string, dayId: string) {
       queryClient.invalidateQueries({
         queryKey: ['day-summary', tripId, dayId],
       });
+      queryClient.invalidateQueries({
+        queryKey: ['gap-suggestions', tripId, dayId],
+      });
     },
   });
 }
@@ -93,6 +101,42 @@ export function useDaySummary(tripId: string, dayId: string | undefined) {
     queryKey: ['day-summary', tripId, dayId],
     queryFn: () => fetchDaySummary(tripId, dayId as string),
     enabled: !!tripId && !!dayId,
+  });
+}
+
+/**
+ * 동선 사이 관광지 추천.
+ * 좌표 있는 항목이 2개 이상일 때만 의미가 있으므로 enabled로 제어한다.
+ * TourAPI 호출이 있어 staleTime을 넉넉히 둔다.
+ */
+export function useGapSuggestions(
+  tripId: string,
+  dayId: string | undefined,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ['gap-suggestions', tripId, dayId],
+    queryFn: () => fetchGapSuggestions(tripId, dayId as string),
+    enabled: !!tripId && !!dayId && enabled,
+    staleTime: 1000 * 60 * 10,
+  });
+}
+
+/**
+ * 구간별 자동차 이동시간(지도 동선 위 라벨용).
+ * 지도에 그리는 좌표 순서 그대로 넘기면, 인접 구간마다 시간을 받는다.
+ * 좌표가 바뀌면(추가/삭제/순서변경) 자동 재조회.
+ */
+export function useRouteLegs(
+  points: { latitude: number; longitude: number }[],
+) {
+  // 좌표 목록을 문자열 키로 만들어 동일 동선은 캐시 재사용
+  const key = points.map((p) => `${p.latitude},${p.longitude}`).join('|');
+  return useQuery({
+    queryKey: ['route-legs', key],
+    queryFn: () => fetchRouteLegs(points),
+    enabled: points.length >= 2,
+    staleTime: 1000 * 60 * 10,
   });
 }
 

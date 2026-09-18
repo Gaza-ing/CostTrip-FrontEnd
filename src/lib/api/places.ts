@@ -56,13 +56,35 @@ export function areaCodes(parent?: string): Promise<AreaCode[]> {
   });
 }
 
-/** 비용 추정 응답 (백엔드 estimate_cost). */
+/** 비용 추정 신뢰도. high=실측 다건, medium=실측 단건/무료, low=카테고리 평균. */
+export type CostConfidence = 'high' | 'medium' | 'low';
+
+/** 추천 비용 범위(원). */
+export interface CostRange {
+  min: number;
+  max: number;
+}
+
+/**
+ * 비용 추정 응답 (백엔드 estimate_cost).
+ *
+ * TourAPI 비용 데이터가 상세하지 않아 단일값이 아니라
+ * 대표값(amount) + 추천 범위(range) + 신뢰도(confidence) + 근거(basis)를 준다.
+ */
 export interface CostEstimate {
-  /** 추정 금액(원). null = 추정 불가 */
+  /** 대표 추정 금액(원). null = 추정 불가 */
   amount: number | null;
-  /** api = 관광공사 실측, category = 카테고리 기본값 */
+  /** api = 관광공사 실측, category = 카테고리 평균 기반 추천 */
   source: 'api' | 'category' | null;
   currency: string;
+  /** 통일 카테고리(폼 카테고리 프리필 힌트). */
+  category?: string;
+  /** 추천 범위. min==max면 단일값. */
+  range?: CostRange;
+  /** 신뢰도. */
+  confidence?: CostConfidence;
+  /** 사람이 읽는 근거 문자열. 예: "이용요금 실측 3,000~10,000원 (5건)" */
+  basis?: string;
 }
 
 /** 통일 카테고리 → 대표 TourAPI contentTypeId (비용 추정 힌트용). */
@@ -80,7 +102,18 @@ export function contentTypeIdForCategory(category: string): string {
 }
 
 /**
- * 장소 예상 비용 추정 (3단 폴백 중 API→카테고리).
+ * TourAPI 검색 결과(Place)에서 contentTypeId를 뽑는다.
+ * 원본 raw.contenttypeid가 가장 정확하고, 없으면 통일 카테고리로 폴백.
+ */
+export function contentTypeIdForPlace(place: Place): string {
+  const raw = place.raw?.contenttypeid;
+  if (typeof raw === 'string' && raw) return raw;
+  if (typeof raw === 'number') return String(raw);
+  return contentTypeIdForCategory(place.category);
+}
+
+/**
+ * 장소 예상 비용 추정(추천: 범위+신뢰도+근거).
  * contentId는 TourAPI 장소의 externalId, contentTypeId는 관광타입.
  */
 export function estimatePlaceCost(
