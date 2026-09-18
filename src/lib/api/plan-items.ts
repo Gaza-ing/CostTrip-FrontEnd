@@ -154,6 +154,13 @@ export interface DaySummary {
   moveCount: number;
   distanceKm: number;
   durationMin: number;
+  /**
+   * 이동시간 근거:
+   * - kakao_driving: 전 구간 자동차 실측
+   * - mixed: 일부 구간은 실측, 일부(도로 없는 산·섬 등)는 직선거리 추정
+   * - estimate: 전체 직선거리 추정(키 없음 등)
+   */
+  durationSource?: 'kakao_driving' | 'mixed' | 'estimate';
   totalEstimated: number;
   currency: string;
 }
@@ -164,6 +171,68 @@ export function fetchDaySummary(
   dayId: string,
 ): Promise<DaySummary> {
   return apiClient.get<DaySummary>(`/trips/${tripId}/days/${dayId}/summary`);
+}
+
+/** 동선 사이 추천 후보 하나. */
+export interface GapSuggestionItem {
+  externalId: string;
+  name: string;
+  /** 통일 카테고리(sightseeing/food/...) */
+  category: string;
+  latitude: number;
+  longitude: number;
+  /** A→후보→B 추가 이동거리(km). 작을수록 동선에서 덜 벗어남. */
+  detourKm: number;
+  address?: string | null;
+  imageUrl?: string | null;
+}
+
+/** 한 구간(두 일정 사이)의 추천 묶음. */
+export interface GapSuggestionGroup {
+  /** 좌표 있는 항목 기준 순번(앞/뒤). */
+  fromIndex: number;
+  toIndex: number;
+  fromTitle: string;
+  toTitle: string;
+  suggestions: GapSuggestionItem[];
+}
+
+export interface GapSuggestionsResponse {
+  gaps: GapSuggestionGroup[];
+}
+
+/**
+ * 동선 사이 관광지 추천.
+ * 좌표 있는 항목이 2개 이상일 때, 인접한 두 항목 사이에 들를 만한
+ * 관광지를 detour(추가 이동거리) 적은 순으로 제안한다.
+ */
+export function fetchGapSuggestions(
+  tripId: string,
+  dayId: string,
+): Promise<GapSuggestionsResponse> {
+  return apiClient.get<GapSuggestionsResponse>(
+    `/trips/${tripId}/days/${dayId}/gap-suggestions`,
+  );
+}
+
+/** 한 구간의 이동시간. */
+export interface RouteLeg {
+  durationMin: number;
+  /** kakao_driving(자동차 실측) / estimate(직선거리 추정) */
+  source: 'kakao_driving' | 'estimate';
+}
+
+/**
+ * 방문 순서 좌표들의 구간별 자동차 이동시간.
+ * 지도에 그린 좌표 순서를 그대로 보내면 인접 구간마다 시간을 돌려준다.
+ * (좌표 순서를 프론트가 정하므로 지도 동선과 라벨이 항상 일치)
+ */
+export function fetchRouteLegs(
+  points: { latitude: number; longitude: number }[],
+): Promise<{ legs: RouteLeg[] }> {
+  return apiClient.post<{ legs: RouteLeg[] }>('/places/route-legs', {
+    points,
+  });
 }
 
 /**

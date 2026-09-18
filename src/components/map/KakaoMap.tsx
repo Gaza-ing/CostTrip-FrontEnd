@@ -13,6 +13,16 @@ export interface MapMarker {
   label?: string;
   /** 동선 순서 (1부터). 지정 시 번호 배지로 표시 */
   order?: number;
+  /**
+   * 강조(부가) 마커 여부. true면 동선 폴리라인/거리 계산에서 제외한다.
+   * 추천 장소처럼 "동선과 무관하게 위치만 보여주는" 마커에 사용.
+   */
+  highlight?: boolean;
+  /**
+   * 다음 순서 마커까지의 이동시간(분). 지정 시 동선 위 구간 라벨에
+   * 거리와 함께 "약 N분"을 표시한다. (자동차 실측/추정)
+   */
+  legMinToNext?: number;
 }
 
 interface KakaoMapProps {
@@ -23,6 +33,8 @@ interface KakaoMapProps {
   height?: number;
   /** 마커가 없을 때 기본 중심 좌표. 기본: 서울시청 */
   defaultCenter?: { lat: number; lng: number };
+  /** 지정 시 이 좌표로 지도를 부드럽게 이동(포커스). 마커 클릭 강조 등에 사용. */
+  focus?: { lat: number; lng: number } | null;
   className?: string;
 }
 
@@ -41,6 +53,7 @@ export function KakaoMap({
   showRoute = false,
   height = 420,
   defaultCenter = DEFAULT_CENTER,
+  focus = null,
   className,
 }: KakaoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -104,9 +117,13 @@ export function KakaoMap({
     const bounds = new kakao.maps.LatLngBounds();
     const path: kakao.maps.LatLng[] = [];
 
+    // 동선(폴리라인/거리) 대상은 강조 마커를 제외한 순서 마커.
+    const routeMarkers = markers.filter((m) => !m.highlight);
+
     markers.forEach((m) => {
       const pos = new kakao.maps.LatLng(m.lat, m.lng);
-      path.push(pos);
+      // 강조(추천) 마커는 동선 경로에서 제외
+      if (!m.highlight) path.push(pos);
       bounds.extend(pos);
 
       const marker = new kakao.maps.Marker({ position: pos, map });
@@ -118,12 +135,15 @@ export function KakaoMap({
           m.order != null
             ? `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-right:4px;border-radius:9px;background:${ROUTE_COLOR};color:#fff;font-size:11px;font-weight:700;">${m.order}</span>`
             : '';
+        // 강조 마커는 라벨 배경/글자색을 브랜드색으로 구분
+        const labelColor = m.highlight ? '#2563eb' : '#1f2937';
         const label = m.label
-          ? `<span style="font-size:11px;font-weight:600;color:#1f2937;">${escapeHtml(
+          ? `<span style="font-size:11px;font-weight:600;color:${labelColor};">${escapeHtml(
               m.label,
             )}</span>`
           : '';
-        const content = `<div style="transform:translateY(-6px);display:inline-flex;align-items:center;white-space:nowrap;background:#fff;border:1px solid #e5e7eb;border-radius:9999px;padding:2px 8px 2px 4px;box-shadow:0 1px 3px rgba(0,0,0,0.12);">${badge}${label}</div>`;
+        const border = m.highlight ? '#93c5fd' : '#e5e7eb';
+        const content = `<div style="transform:translateY(-6px);display:inline-flex;align-items:center;white-space:nowrap;background:#fff;border:1px solid ${border};border-radius:9999px;padding:2px 8px 2px 4px;box-shadow:0 1px 3px rgba(0,0,0,0.12);">${badge}${label}</div>`;
         const overlay = new kakao.maps.CustomOverlay({
           position: pos,
           content,
@@ -134,7 +154,7 @@ export function KakaoMap({
       }
     });
 
-    // 동선 폴리라인 + 구간별 거리 라벨
+    // 동선 폴리라인 + 구간별 거리 라벨 (강조 마커 제외한 순서 마커만)
     if (showRoute && path.length >= 2) {
       const polyline = new kakao.maps.Polyline({
         path,
@@ -146,18 +166,24 @@ export function KakaoMap({
       });
       overlaysRef.current.push(polyline);
 
-      // 각 구간(마커 i → i+1) 중점에 직선 거리 라벨 표시
-      for (let i = 1; i < markers.length; i++) {
-        const a = markers[i - 1];
-        const b = markers[i];
+      // 각 구간(순서 마커 i → i+1) 중점에 "거리 · 시간" 라벨 표시.
+      // 시간(legMinToNext)이 있으면 강조해서 함께 보여준다.
+      for (let i = 1; i < routeMarkers.length; i++) {
+        const a = routeMarkers[i - 1];
+        const b = routeMarkers[i];
         const km = haversineKm(a, b);
         const distText =
           km >= 1 ? `${km.toFixed(1)}km` : `${Math.round(km * 1000)}m`;
+        const minutes = a.legMinToNext;
+        const timePart =
+          typeof minutes === 'number'
+            ? `<span style="opacity:.85;">· 약 ${minutes}분</span>`
+            : '';
         const midLat = (a.lat + b.lat) / 2;
         const midLng = (a.lng + b.lng) / 2;
         const seg = new kakao.maps.CustomOverlay({
           position: new kakao.maps.LatLng(midLat, midLng),
-          content: `<div style="transform:translateY(-50%);white-space:nowrap;background:${ROUTE_COLOR};color:#fff;border-radius:9999px;padding:1px 7px;font-size:10px;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,0.2);">${distText}</div>`,
+          content: `<div style="transform:translateY(-50%);white-space:nowrap;background:${ROUTE_COLOR};color:#fff;border-radius:9999px;padding:1px 8px;font-size:10px;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,0.2);">${distText} ${timePart}</div>`,
           yAnchor: 0.5,
           xAnchor: 0.5,
           map,
@@ -174,6 +200,16 @@ export function KakaoMap({
       map.setBounds(bounds);
     }
   }, [markers, showRoute, status, defaultCenter]);
+
+  // focus가 지정되면 해당 좌표로 부드럽게 이동(마커 강조 클릭 등).
+  // 마커 렌더(위 effect)로 bounds가 맞춰진 뒤 실행되도록 별도 effect로 분리.
+  useEffect(() => {
+    if (status !== 'ready' || !mapRef.current || !focus || !window.kakao?.maps)
+      return;
+    const { kakao } = window;
+    const map = mapRef.current;
+    map.panTo(new kakao.maps.LatLng(focus.lat, focus.lng));
+  }, [focus, status]);
 
   if (keyMissing || status === 'error') {
     const message = keyMissing
