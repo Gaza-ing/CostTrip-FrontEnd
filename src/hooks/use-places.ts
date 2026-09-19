@@ -4,6 +4,8 @@ import {
   areaBasedPlaces,
   areaCodes,
   estimatePlaceCost,
+  nearbyPlaces,
+  fetchPlaceDetailCard,
 } from '@/lib/api/places';
 
 /** 광주 지역코드 (TourAPI 표준). 지역특색형 기본 추천에 사용. */
@@ -68,5 +70,36 @@ export function useEstimatePlaceCost() {
       contentId: string;
       contentTypeId: string;
     }) => estimatePlaceCost(contentId, contentTypeId),
+  });
+}
+
+/**
+ * 마커 클릭용 장소 상세 카드(사진·개요·요금).
+ * contentId가 있을 때만 조회한다. TourAPI 호출이라 staleTime을 넉넉히 둔다.
+ */
+export function usePlaceDetailCard(contentId: string | null) {
+  return useQuery({
+    queryKey: ['places', 'detail-card', contentId],
+    queryFn: () => fetchPlaceDetailCard(contentId as string),
+    enabled: !!contentId,
+    staleTime: 1000 * 60 * 30,
+  });
+}
+
+/**
+ * 지도 중심 주변 관광지 검색 ("이 지역에서 찾기").
+ * 버튼 클릭 시 mutateAsync로 호출해 지도에 마커로 뿌린다.
+ */
+export function useNearbyPlaces() {
+  return useMutation({
+    mutationFn: ({
+      lat,
+      lng,
+      radius,
+    }: {
+      lat: number;
+      lng: number;
+      radius?: number;
+    }) => nearbyPlaces(lat, lng, { radius }),
   });
 }

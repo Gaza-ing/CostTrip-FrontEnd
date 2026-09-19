@@ -5,6 +5,16 @@ import {
   fetchBudgetCategories,
   type BudgetData,
 } from '@/lib/api/budgets';
+import { fetchPlanCostSummary } from '@/lib/api/plan-items';
+
+/** 여행 전체 일정의 카테고리별 예상비용 합계(예산 페이지 '예상 지출'용) */
+export function usePlanCostSummary(tripId: string) {
+  return useQuery({
+    queryKey: ['plan-cost-summary', tripId],
+    queryFn: () => fetchPlanCostSummary(tripId),
+    enabled: !!tripId,
+  });
+}
 
 /** 예산 조회 (전체 + 카테고리별, 프론트 카테고리 id 기준) */
 export function useBudgets(tripId: string) {

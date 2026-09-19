@@ -7,7 +7,11 @@ import { HeaderActionButton } from '@/components/layout';
 import { useHeaderAction } from '@/hooks/use-header-action';
 import { CATEGORIES } from '@/lib/constants';
 import { formatKRW, cn } from '@/lib/utils';
-import { useBudgets, useSaveBudgets } from '@/hooks/use-budgets';
+import {
+  useBudgets,
+  useSaveBudgets,
+  usePlanCostSummary,
+} from '@/hooks/use-budgets';
 import { useTrip } from '@/hooks/use-trips';
 import { useMembers } from '@/hooks/use-members';
 import { toast } from '@/stores/toast-store';
@@ -54,6 +58,8 @@ function BudgetSetupForm({
   const { data: trip } = useTrip(tripId);
   const { data: members = [] } = useMembers(tripId);
   const saveBudgetsMut = useSaveBudgets(tripId);
+  // 일정에서 나온 카테고리별 예상 지출(프론트 카테고리 id 기준)
+  const { data: planCost } = usePlanCostSummary(tripId);
 
   const startDate = trip?.startDate ?? '';
   const endDate = trip?.endDate ?? '';
@@ -85,6 +91,12 @@ function BudgetSetupForm({
     setThresholdOverride((o) => ({ ...o, warning: v }));
   const setOverThreshold = (v: number) =>
     setThresholdOverride((o) => ({ ...o, over: v }));
+
+  // 임계값 입력 필드는 '타이핑 중 자유 입력 → blur 시 clamp' 방식.
+  // 실시간 clamp는 타이핑을 방해하므로 로컬 텍스트 상태를 따로 둔다.
+  const [warningText, setWarningText] = useState(String(warningThreshold));
+  const [overText, setOverText] = useState(String(overThreshold));
+
   const [showTable, setShowTable] = useState(false);
 
   const categoryTotal = Object.values(localBudgets).reduce(
@@ -117,7 +129,9 @@ function BudgetSetupForm({
       {
         onSuccess: () => {
           toast.success('예산이 저장되었습니다');
-          // 저장 후 서버값을 기준으로 삼도록 override 초기화
+          // 저장한 값으로 입력 텍스트를 확정한 뒤 override 초기화(서버값 기준으로)
+          setWarningText(String(warningThreshold));
+          setOverText(String(overThreshold));
           setThresholdOverride({});
         },
         onError: () => toast.error('예산 저장에 실패했습니다'),
@@ -256,17 +270,21 @@ function BudgetSetupForm({
           <Card>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-base font-bold text-ink">카테고리별 배분</h2>
-              <span className="text-xs text-ink-3">금액 또는 비율로 조정</span>
+              <span className="text-xs text-ink-3">
+                예상 지출을 참고해 예산을 정하세요
+              </span>
             </div>
 
             {/* 테이블 헤더 */}
-            <div className="grid grid-cols-[90px_1fr_70px_1fr] gap-3 mb-3 px-1">
+            <div className="grid grid-cols-[80px_1fr_1fr_1fr] gap-3 mb-3 px-1">
               <span className="text-[11px] font-medium text-ink-3">
                 카테고리
               </span>
+              <span className="text-[11px] font-medium text-ink-3">
+                예상 지출
+              </span>
               <span className="text-[11px] font-medium text-ink-3">예산</span>
-              <span className="text-[11px] font-medium text-ink-3">비율</span>
-              <span className="text-[11px] font-medium text-ink-3">배분</span>
+              <span className="text-[11px] font-medium text-ink-3">비중</span>
             </div>
 
             {/* 카테고리 행 */}
@@ -278,10 +296,12 @@ function BudgetSetupForm({
                     ? Math.round((budget / localTotal) * 1000) / 10
                     : 0;
 
+                const planned = planCost?.byCategory[cat.id] ?? 0;
+                const overBudget = budget > 0 && planned > budget;
                 return (
                   <div
                     key={cat.id}
-                    className="grid grid-cols-[90px_1fr_70px_1fr] gap-3 items-center"
+                    className="grid grid-cols-[80px_1fr_1fr_1fr] gap-3 items-center"
                   >
                     {/* 카테고리 */}
                     <div className="flex items-center gap-2">
@@ -294,7 +314,22 @@ function BudgetSetupForm({
                       </span>
                     </div>
 
-                    {/* 예산 금액 */}
+                    {/* 예상 지출(일정 합계, 읽기 전용) */}
+                    <div
+                      className={cn(
+                        'flex h-9 items-center justify-end rounded-sm bg-surface-bg-alt px-2.5 text-sm tabular-nums',
+                        overBudget
+                          ? 'font-semibold text-danger-text'
+                          : 'text-ink-2',
+                      )}
+                      title={
+                        overBudget ? '예상 지출이 예산을 초과했어요' : undefined
+                      }
+                    >
+                      {formatKRW(planned)}
+                    </div>
+
+                    {/* 예산 금액(입력) */}
                     <div className="relative">
                       <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-ink-3">
                         ₩
@@ -314,43 +349,34 @@ function BudgetSetupForm({
                       />
                     </div>
 
-                    {/* 비율 */}
-                    <div className="relative">
-                      <input
-                        type="number"
-                        value={percent}
-                        onChange={(e) => {
-                          const pct = parseFloat(e.target.value) || 0;
-                          setLocalBudgets((prev) => ({
-                            ...prev,
-                            [cat.id]: Math.round((pct / 100) * localTotal),
-                          }));
-                        }}
-                        className="h-9 w-full rounded-sm border border-surface-line bg-surface-card px-2 text-center text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
-                      />
-                    </div>
-
-                    {/* 배분 바 */}
-                    <div className="h-2.5 rounded-pill bg-surface-bg-alt overflow-hidden">
-                      <div
-                        className="h-full rounded-pill transition-all duration-300"
-                        style={{
-                          width: `${Math.min(100, percent)}%`,
-                          backgroundColor: DONUT_COLORS[i],
-                        }}
-                      />
+                    {/* 비중: 배분 바 + 비율(%) 읽기 전용 */}
+                    <div className="flex flex-col gap-1">
+                      <span className="text-right text-[11px] tabular-nums text-ink-3">
+                        {percent}%
+                      </span>
+                      <div className="h-2.5 rounded-pill bg-surface-bg-alt overflow-hidden">
+                        <div
+                          className="h-full rounded-pill transition-all duration-300"
+                          style={{
+                            width: `${Math.min(100, percent)}%`,
+                            backgroundColor: DONUT_COLORS[i],
+                          }}
+                        />
+                      </div>
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            {/* 합계 */}
+            {/* 합계: 배분 합계 / 전체 예산 */}
             <div className="mt-5 pt-4 border-t border-surface-line flex items-center justify-between">
-              <span className="text-base font-bold text-ink">합계</span>
+              <span className="text-base font-bold text-ink">배분 합계</span>
               <span className="text-base font-bold text-ink">
                 {formatKRW(categoryTotal)}{' '}
-                <span className="text-sm font-normal text-ink-3">/ 100%</span>
+                <span className="text-sm font-normal text-ink-3">
+                  / {formatKRW(localTotal)}
+                </span>
               </span>
             </div>
           </Card>
@@ -365,10 +391,34 @@ function BudgetSetupForm({
                 </label>
                 <input
                   type="number"
-                  value={warningThreshold}
-                  onChange={(e) =>
-                    setWarningThreshold(parseInt(e.target.value) || 80)
-                  }
+                  min={1}
+                  max={99}
+                  value={warningText}
+                  onChange={(e) => setWarningText(e.target.value)}
+                  onBlur={() => {
+                    // 입력 끝나면 1~99로 확정(타이핑 중엔 건드리지 않음)
+                    const v = parseInt(warningText);
+                    const next = Number.isNaN(v)
+                      ? 80
+                      : Math.min(99, Math.max(1, v));
+                    // 범위를 벗어나 보정된 경우에만 안내
+                    if (!Number.isNaN(v) && v !== next) {
+                      toast.info(
+                        `임박 경고는 1~99%만 가능해서 ${next}%로 맞췄어요`,
+                      );
+                    }
+                    setWarningThreshold(next);
+                    setWarningText(String(next));
+                    // 초과가 임박 이하가 되면 초과도 끌어올림(초과 > 임박 보장)
+                    if (overThreshold <= next) {
+                      const nextOver = Math.min(200, next + 1);
+                      setOverThreshold(nextOver);
+                      setOverText(String(nextOver));
+                      toast.info(
+                        `초과 경고를 임박보다 크게 ${nextOver}%로 조정했어요`,
+                      );
+                    }
+                  }}
                   className="h-11 w-full rounded-sm border border-surface-line bg-surface-card px-4 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
                 />
               </div>
@@ -381,10 +431,24 @@ function BudgetSetupForm({
                 </label>
                 <input
                   type="number"
-                  value={overThreshold}
-                  onChange={(e) =>
-                    setOverThreshold(parseInt(e.target.value) || 100)
-                  }
+                  min={warningThreshold + 1}
+                  max={200}
+                  value={overText}
+                  onChange={(e) => setOverText(e.target.value)}
+                  onBlur={() => {
+                    // 입력 끝나면 (임박+1)~200으로 확정
+                    const v = parseInt(overText);
+                    const next = Number.isNaN(v)
+                      ? 100
+                      : Math.min(200, Math.max(warningThreshold + 1, v));
+                    if (!Number.isNaN(v) && v !== next) {
+                      toast.info(
+                        `초과 경고는 임박(${warningThreshold}%)보다 크고 200% 이하여야 해서 ${next}%로 맞췄어요`,
+                      );
+                    }
+                    setOverThreshold(next);
+                    setOverText(String(next));
+                  }}
                   className="h-11 w-full rounded-sm border border-surface-line bg-surface-card px-4 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
                 />
               </div>

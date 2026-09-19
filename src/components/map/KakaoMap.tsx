@@ -25,6 +25,14 @@ export interface MapMarker {
   legMinToNext?: number;
 }
 
+/** 지도에서 고를 수 있는 관광지 후보 마커. */
+export interface PoiMarker {
+  id: string;
+  lat: number;
+  lng: number;
+  label: string;
+}
+
 interface KakaoMapProps {
   markers: MapMarker[];
   /** 마커들을 순서대로 잇는 동선(폴리라인) 표시 여부 */
@@ -35,6 +43,12 @@ interface KakaoMapProps {
   defaultCenter?: { lat: number; lng: number };
   /** 지정 시 이 좌표로 지도를 부드럽게 이동(포커스). 마커 클릭 강조 등에 사용. */
   focus?: { lat: number; lng: number } | null;
+  /** 지도에서 고를 수 있는 관광지 후보(초록 마커). 클릭 시 onPoiClick 호출. */
+  poiMarkers?: PoiMarker[];
+  /** 관광지 후보 마커 클릭 콜백. */
+  onPoiClick?: (poi: PoiMarker) => void;
+  /** 지도 중심이 바뀔 때 호출(이 지역에서 찾기용). */
+  onCenterChanged?: (center: { lat: number; lng: number }) => void;
   className?: string;
 }
 
@@ -54,6 +68,9 @@ export function KakaoMap({
   height = 420,
   defaultCenter = DEFAULT_CENTER,
   focus = null,
+  poiMarkers = [],
+  onPoiClick,
+  onCenterChanged,
   className,
 }: KakaoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -62,6 +79,17 @@ export function KakaoMap({
   const overlaysRef = useRef<
     Array<{ setMap: (m: kakao.maps.Map | null) => void }>
   >([]);
+  // POI 마커 오버레이 별도 관리(일반 마커와 갱신 주기가 다름)
+  const poiOverlaysRef = useRef<
+    Array<{ setMap: (m: kakao.maps.Map | null) => void }>
+  >([]);
+  // 최신 콜백을 ref로 잡아 지도 리스너 재등록을 피한다.
+  const onPoiClickRef = useRef(onPoiClick);
+  const onCenterChangedRef = useRef(onCenterChanged);
+  useEffect(() => {
+    onPoiClickRef.current = onPoiClick;
+    onCenterChangedRef.current = onCenterChanged;
+  }, [onPoiClick, onCenterChanged]);
   // 키 존재 여부는 순수 계산이므로 렌더 시점에 파생값으로 구한다.
   const keyMissing = !hasKakaoKey();
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
@@ -77,9 +105,15 @@ export function KakaoMap({
     loadKakaoMap()
       .then((kakao) => {
         if (cancelled || !containerRef.current) return;
-        mapRef.current = new kakao.maps.Map(containerRef.current, {
+        const map = new kakao.maps.Map(containerRef.current, {
           center: new kakao.maps.LatLng(defaultCenter.lat, defaultCenter.lng),
           level: 5,
+        });
+        mapRef.current = map;
+        // 지도 이동 시 최신 중심 좌표를 부모에 알림("이 지역에서 찾기"용)
+        kakao.maps.event.addListener(map, 'center_changed', () => {
+          const c = map.getCenter();
+          onCenterChangedRef.current?.({ lat: c.getLat(), lng: c.getLng() });
         });
         setStatus('ready');
       })
@@ -210,6 +244,56 @@ export function KakaoMap({
     const map = mapRef.current;
     map.panTo(new kakao.maps.LatLng(focus.lat, focus.lng));
   }, [focus, status]);
+
+  // POI(관광지 후보) 마커: 초록색 + 클릭 시 onPoiClick. 뷰포트는 건드리지 않음.
+  useEffect(() => {
+    if (status !== 'ready' || !mapRef.current || !window.kakao?.maps) return;
+    const { kakao } = window;
+    const map = mapRef.current;
+
+    poiOverlaysRef.current.forEach((o) => o.setMap(null));
+    poiOverlaysRef.current = [];
+
+    // 초록 원형 마커 이미지(SVG data URI)
+    const green =
+      'data:image/svg+xml;charset=utf-8,' +
+      encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22">' +
+          '<circle cx="11" cy="11" r="8" fill="#16a34a" stroke="#fff" stroke-width="2"/>' +
+          '</svg>',
+      );
+
+    poiMarkers.forEach((poi) => {
+      const pos = new kakao.maps.LatLng(poi.lat, poi.lng);
+      const image = new kakao.maps.MarkerImage(
+        green,
+        new kakao.maps.Size(22, 22),
+      );
+      const marker = new kakao.maps.Marker({ position: pos, map, image });
+      kakao.maps.event.addListener(marker, 'click', () => {
+        onPoiClickRef.current?.(poi);
+      });
+      poiOverlaysRef.current.push(marker);
+
+      // 라벨 오버레이: 마커 위에 겹쳐 그려지므로 마커 클릭을 가릴 수 있다.
+      // 라벨 자체에도 클릭 리스너를 달아 어디를 눌러도 onPoiClick이 호출되게 한다.
+      const labelEl = document.createElement('div');
+      labelEl.style.cssText =
+        'transform:translateY(-4px);white-space:nowrap;background:#16a34a;color:#fff;border-radius:9999px;padding:1px 7px;font-size:10px;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,0.2);cursor:pointer;';
+      labelEl.textContent = poi.label;
+      labelEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onPoiClickRef.current?.(poi);
+      });
+      const overlay = new kakao.maps.CustomOverlay({
+        position: pos,
+        content: labelEl,
+        yAnchor: 2.2,
+        map,
+      });
+      poiOverlaysRef.current.push(overlay);
+    });
+  }, [poiMarkers, status]);
 
   if (keyMissing || status === 'error') {
     const message = keyMissing

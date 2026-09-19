@@ -6,6 +6,7 @@ import {
   createPlanItemsBulk,
   updatePlanItem,
   deletePlanItem,
+  reorderPlanItems,
   fetchDaySummary,
   fetchGapSuggestions,
   fetchRouteLegs,
@@ -90,6 +91,25 @@ export function useDeletePlanItem(tripId: string, dayId: string) {
       });
       queryClient.invalidateQueries({
         queryKey: ['gap-suggestions', tripId, dayId],
+      });
+    },
+  });
+}
+
+/**
+ * 일정 항목 순서 일괄 변경(드래그앤드롭).
+ * 드래그 후의 최종 순서(itemIds)를 보내면 서버가 sortOrder를 재부여한다.
+ * 성공 시 서버가 돌려준 정렬 결과로 캐시를 즉시 갱신한다.
+ */
+export function useReorderPlanItems(tripId: string, dayId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemIds: string[]) => reorderPlanItems(tripId, dayId, itemIds),
+    onSuccess: (items) => {
+      // 서버 정렬 결과를 캐시에 즉시 반영(재요청 없이 순서 확정)
+      queryClient.setQueryData(['plan-items', tripId, dayId], items);
+      queryClient.invalidateQueries({
+        queryKey: ['day-summary', tripId, dayId],
       });
     },
   });

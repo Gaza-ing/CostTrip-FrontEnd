@@ -49,6 +49,20 @@ export function areaBasedPlaces(
   });
 }
 
+/**
+ * 좌표 주변 장소 검색 (TourAPI locationBasedList2).
+ * 지도 중심 좌표 기준 반경 내 관광지 등을 찾아 마커로 표시하는 데 쓴다.
+ */
+export function nearbyPlaces(
+  lat: number,
+  lng: number,
+  options?: { radius?: number },
+): Promise<Place[]> {
+  return apiClient.get<Place[]>('/places/nearby', {
+    params: { lat, lng, radius: options?.radius ?? 2000 },
+  });
+}
+
 /** 지역코드 목록. parent 없으면 시·도, 있으면 하위 시군구. */
 export function areaCodes(parent?: string): Promise<AreaCode[]> {
   return apiClient.get<AreaCode[]>('/places/area-codes', {
@@ -123,4 +137,42 @@ export function estimatePlaceCost(
   return apiClient.get<CostEstimate>(`/places/estimate-cost/${contentId}`, {
     params: { contentTypeId },
   });
+}
+
+/**
+ * 마커 클릭용 장소 상세 카드 (백엔드 GET /places/detail-card/{contentId}).
+ *
+ * 카카오맵 앱 상세와 유사한 UX(사진·개요·요금)를 TourAPI 데이터로 재현한다.
+ * detailCommon2(개요·대표이미지·연락처) + detailImage2(사진 갤러리)
+ * + detailIntro2(이용시간·요금) + 비용추정을 한 번에 담아 준다.
+ */
+export interface PlaceDetailCard {
+  externalId: string;
+  provider: string;
+  name: string;
+  /** 통일 카테고리(sightseeing/lodging/food/...) */
+  category: string;
+  /** TourAPI 원본 타입(12/32/39 ...). 비용 재추정·일정 카테고리 매핑에 사용. */
+  contentTypeId?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  address?: string | null;
+  tel?: string | null;
+  /** homepage는 <a href> HTML로 오는 경우가 많다(그대로 렌더 주의). */
+  homepage?: string | null;
+  /** 개요(설명). HTML 개행(<br>)이 섞일 수 있다. */
+  overview?: string | null;
+  firstImage?: string | null;
+  /** 사진 갤러리 URL 목록. */
+  images: string[];
+  useTime?: string | null;
+  useFee?: string | null;
+  costEstimate?: CostEstimate | null;
+}
+
+/** 장소 상세 카드 조회. contentId는 TourAPI externalId. */
+export function fetchPlaceDetailCard(
+  contentId: string,
+): Promise<PlaceDetailCard> {
+  return apiClient.get<PlaceDetailCard>(`/places/detail-card/${contentId}`);
 }

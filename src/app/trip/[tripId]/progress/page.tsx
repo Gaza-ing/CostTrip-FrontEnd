@@ -38,17 +38,14 @@ export default function ProgressDashboardPage() {
   const tripId = params.tripId as string;
   const [showTable, setShowTable] = useState(false);
 
-  // 헤더 우측 액션: 진행 대시보드 전용 LIVE 배지 + "+ 지출 추가" 버튼
+  // 헤더 우측 액션: "+ 지출 추가" 버튼
   useHeaderAction(
-    <div className="flex items-center gap-2">
-      <Badge variant="brand">LIVE</Badge>
-      <HeaderActionButton
-        onClick={() => router.push(`/trip/${tripId}/expense/add`)}
-      >
-        <Plus size={16} />
-        지출 추가
-      </HeaderActionButton>
-    </div>,
+    <HeaderActionButton
+      onClick={() => router.push(`/trip/${tripId}/expense/add`)}
+    >
+      <Plus size={16} />
+      지출 추가
+    </HeaderActionButton>,
     [tripId],
   );
 
