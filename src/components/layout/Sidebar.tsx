@@ -18,6 +18,8 @@ import {
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAppStore } from '@/stores/app-store';
+import { useTrip } from '@/hooks/use-trips';
+import { useMembers } from '@/hooks/use-members';
 import { useAuth } from '@/lib/auth-context';
 import { useMyProfile } from '@/hooks/use-my-profile';
 import { Avatar } from '@/components/ui/Avatar';
@@ -91,21 +93,34 @@ export function Sidebar({ tripId, tripTitle }: SidebarProps) {
     await signOut();
     router.replace('/login');
   }
-  const tripDestination = useAppStore((s) => s.tripDestination);
-  const tripHeadcount = useAppStore((s) => s.tripHeadcount);
-  const tripStartDate = useAppStore((s) => s.tripStartDate);
-  const tripEndDate = useAppStore((s) => s.tripEndDate);
   const isResizing = useRef(false);
 
-  const dayCount =
+  // 여행 정보는 조회 결과를 그대로 쓴다.
+  // (스토어에 따로 복사해 두면 갱신되지 않아 실제 여행과 어긋난다)
+  const { data: trip } = useTrip(tripId ?? '');
+  const { data: members = [] } = useMembers(tripId ?? '');
+
+  const tripStartDate = trip?.startDate ?? '';
+  const tripEndDate = trip?.endDate ?? '';
+  const tripHeadcount = Math.max(trip?.headcount ?? 0, members.length, 1);
+
+  // 날짜가 아직 없으면 기간 표기를 생략한다(추정값을 보여주지 않는다)
+  const durationLabel =
     tripStartDate && tripEndDate
-      ? Math.ceil(
-          (new Date(tripEndDate).getTime() -
-            new Date(tripStartDate).getTime()) /
-            (1000 * 60 * 60 * 24),
-        ) + 1
-      : 5;
-  const durationLabel = `${dayCount - 1}박${dayCount}일`;
+      ? (() => {
+          const dayCount =
+            Math.ceil(
+              (new Date(tripEndDate).getTime() -
+                new Date(tripStartDate).getTime()) /
+                (1000 * 60 * 60 * 24),
+            ) + 1;
+          return `${dayCount - 1}박${dayCount}일`;
+        })()
+      : '';
+
+  const tripMeta = [trip?.destination, durationLabel, `${tripHeadcount}명`]
+    .filter(Boolean)
+    .join(' · ');
 
   // 경로에 따라 계획/진행 자동 판정
   const isProgressPath = tripId
@@ -212,9 +227,7 @@ export function Sidebar({ tripId, tripTitle }: SidebarProps) {
               <p className="text-sm font-bold text-ink">
                 {tripTitle || '여행'}
               </p>
-              <p className="text-[11px] text-ink-3 mt-0.5">
-                {tripDestination} · {durationLabel} · {tripHeadcount}명
-              </p>
+              <p className="text-[11px] text-ink-3 mt-0.5">{tripMeta}</p>
             </div>
 
             {/* 계획/진행 세그먼트 (경로 기반 자동 표시) */}

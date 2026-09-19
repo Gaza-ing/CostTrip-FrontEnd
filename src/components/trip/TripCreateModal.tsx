@@ -8,7 +8,6 @@ import { Avatar } from '@/components/ui/Avatar';
 import { useCreateTrip } from '@/hooks/use-trips';
 import { useMe } from '@/hooks/use-auth-user';
 import { useMyProfile } from '@/hooks/use-my-profile';
-import { useAppStore } from '@/stores/app-store';
 import { toast } from '@/stores/toast-store';
 import { inviteByEmail } from '@/lib/api/members';
 import { lookupUser } from '@/lib/api/auth';
@@ -46,7 +45,6 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
   const createTrip = useCreateTrip();
   const { data: me } = useMe();
   const { avatarColor: myColor } = useMyProfile();
-  const { setTripInfo, setTripDates } = useAppStore();
 
   const [form, setForm] = useState({
     title: '',
@@ -191,14 +189,6 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
       },
       {
         onSuccess: async (trip) => {
-          // Store에 여행 정보 동기화
-          setTripInfo({
-            title: form.title || form.destination,
-            destination: form.destination,
-            headcount: members.length,
-          });
-          setTripDates(form.startDate, form.endDate);
-
           // 소유자(me)를 제외한, 이메일로 추가된 멤버들에게 초대 발송
           const invitees = members.filter(
             (m) => m.role !== 'owner' && m.email.includes('@'),
