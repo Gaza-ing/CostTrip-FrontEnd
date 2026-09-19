@@ -51,6 +51,7 @@ export interface PlanItem {
   latitude?: number;
   longitude?: number;
   placeName?: string;
+  memo?: string;
   sortOrder: number;
 }
 

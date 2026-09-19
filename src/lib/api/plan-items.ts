@@ -1,6 +1,8 @@
 import type { PlanItem } from '@/types';
 import { apiClient } from './client';
-import { toBackendCategory, toFrontCategory } from '@/lib/category';
+import { toFrontCategory } from '@/lib/category';
+// 일정 카테고리 id는 곧 백엔드 PlanItem.type 값이라 변환 없이 그대로 주고받는다.
+// (예산 key↔id 변환은 예상비용 합계 등 예산 카테고리 다룰 때만 toFrontCategory 사용)
 
 /**
  * 백엔드 PlanItem 응답(camel 변환 후).
@@ -49,7 +51,7 @@ function normalize(p: BackendPlanItem): PlanItem {
   return {
     id: p.id,
     dayId: p.dayId,
-    categoryId: toFrontCategory(p.type),
+    categoryId: p.type, // 백엔드 type = 일정 카테고리 id
     title: p.title,
     estimatedCost: p.estimatedAmount ?? 0,
     startTime: isoToHm(p.startTime),
@@ -57,6 +59,7 @@ function normalize(p: BackendPlanItem): PlanItem {
     latitude: p.latitude ?? undefined,
     longitude: p.longitude ?? undefined,
     placeName: p.placeName ?? undefined,
+    memo: p.memo ?? undefined,
     sortOrder: p.sortOrder,
   };
 }
@@ -96,7 +99,7 @@ export async function createPlanItem(
     `/trips/${tripId}/days/${dayId}/items`,
     {
       title: input.title,
-      type: toBackendCategory(input.categoryId),
+      type: input.categoryId,
       startTime: hmToIso(input.startTime, dayDate),
       endTime: hmToIso(input.endTime, dayDate),
       estimatedAmount: input.estimatedCost ?? null,
@@ -119,8 +122,7 @@ export async function updatePlanItem(
 ): Promise<PlanItem> {
   const body: Record<string, unknown> = {};
   if (patch.title !== undefined) body.title = patch.title;
-  if (patch.categoryId !== undefined)
-    body.type = toBackendCategory(patch.categoryId);
+  if (patch.categoryId !== undefined) body.type = patch.categoryId;
   if (patch.estimatedCost !== undefined)
     body.estimatedAmount = patch.estimatedCost;
   if (patch.startTime !== undefined)
@@ -148,6 +150,27 @@ export async function deletePlanItem(
   await apiClient.delete<void>(`/trips/${tripId}/items/${itemId}`);
 }
 
+/**
+ * 일정 항목 순서 일괄 변경(드래그앤드롭).
+ *
+ * 드래그 후의 최종 항목 순서(itemIds)를 그대로 보내면, 서버가 배열 인덱스대로
+ * sortOrder를 0,1,2...로 다시 매긴다. 항목마다 PATCH를 여러 번 보내지 않고
+ * 한 요청으로 원자적으로 처리해 부분실패/경합을 방지한다.
+ *
+ * itemIds는 해당 day의 현재 항목 전체를 순서대로 담아야 한다(누락/외부항목 시 400).
+ */
+export async function reorderPlanItems(
+  tripId: string,
+  dayId: string,
+  itemIds: string[],
+): Promise<PlanItem[]> {
+  const data = await apiClient.patch<BackendPlanItem[]>(
+    `/trips/${tripId}/days/${dayId}/items:reorder`,
+    { itemIds },
+  );
+  return data.map(normalize);
+}
+
 /** Day 요약 (일정 추가 페이지 하단 바). */
 export interface DaySummary {
   itemCount: number;
@@ -171,6 +194,30 @@ export function fetchDaySummary(
   dayId: string,
 ): Promise<DaySummary> {
   return apiClient.get<DaySummary>(`/trips/${tripId}/days/${dayId}/summary`);
+}
+
+/** 여행 전체 일정의 카테고리별 예상비용 합계 응답(백엔드 예산 key 기준). */
+interface PlanCostSummaryRaw {
+  byCategory: Record<string, number>; // 예산 key(lodging/...) → 합계
+  total: number;
+}
+
+/**
+ * 여행 전체 일정 예상비용 합계.
+ * 백엔드는 예산 key(lodging/transport/food/sightseeing/shopping/etc)로 주므로,
+ * 프론트 예산 카테고리 id(stay/move/food/tour/shop/etc)로 변환해 반환한다.
+ */
+export async function fetchPlanCostSummary(
+  tripId: string,
+): Promise<{ byCategory: Record<string, number>; total: number }> {
+  const raw = await apiClient.get<PlanCostSummaryRaw>(
+    `/trips/${tripId}/plan-cost-summary`,
+  );
+  const byCategory: Record<string, number> = {};
+  for (const [key, amount] of Object.entries(raw.byCategory ?? {})) {
+    byCategory[toFrontCategory(key)] = amount;
+  }
+  return { byCategory, total: raw.total };
 }
 
 /** 동선 사이 추천 후보 하나. */
@@ -251,7 +298,7 @@ export async function createPlanItemsBulk(
       dayIds,
       item: {
         title: input.title,
-        type: toBackendCategory(input.categoryId),
+        type: input.categoryId,
         startTime: hmToIso(input.startTime, dayDate),
         endTime: hmToIso(input.endTime, dayDate),
         estimatedAmount: input.estimatedCost ?? null,

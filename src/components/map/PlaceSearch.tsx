@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Search, MapPin, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -95,6 +95,9 @@ export function PlaceSearch({
   /** 카카오 폴백을 썼는지(안내 문구용). */
   const [usedKakaoFallback, setUsedKakaoFallback] = useState(false);
   const placesRef = useRef<kakao.maps.services.Places | null>(null);
+  // 자동완성 debounce 타이머 + 최신 요청만 반영하기 위한 시퀀스 가드.
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const seqRef = useRef(0);
 
   /** 카카오 키워드 검색(폴백). 콜백 API를 Promise로 정리. */
   async function kakaoSearch(
@@ -113,9 +116,13 @@ export function PlaceSearch({
     });
   }
 
-  async function runSearch() {
-    const q = keyword.trim();
+  async function runSearch(rawKeyword?: string) {
+    const q = (rawKeyword ?? keyword).trim();
     if (!q) return;
+
+    // 이 요청의 시퀀스 번호. 나중에 시작된 요청만 결과를 반영(경쟁조건 방지).
+    const seq = ++seqRef.current;
+    const isLatest = () => seq === seqRef.current;
 
     setState('searching');
     setTourResults([]);
@@ -125,6 +132,7 @@ export function PlaceSearch({
     // 1) TourAPI 우선
     try {
       const tour = await searchPlaces(q);
+      if (!isLatest()) return; // 더 최신 검색이 시작됨 → 이 결과는 폐기
       if (tour.length > 0) {
         setTourResults(tour);
         setState('idle');
@@ -133,10 +141,12 @@ export function PlaceSearch({
     } catch {
       // TourAPI 실패는 조용히 카카오 폴백으로 넘어감
     }
+    if (!isLatest()) return;
 
     // 2) 카카오 폴백
     try {
       const kakao = await kakaoSearch(q);
+      if (!isLatest()) return;
       setUsedKakaoFallback(true);
       if (kakao.length > 0) {
         setKakaoResults(kakao);
@@ -145,6 +155,7 @@ export function PlaceSearch({
         setState('empty');
       }
     } catch (e) {
+      if (!isLatest()) return;
       // 카카오 키 없음 등
       setState(
         e instanceof Error && e.message === 'no-kakao-key' ? 'empty' : 'error',
@@ -152,25 +163,55 @@ export function PlaceSearch({
     }
   }
 
+  /** 입력 변경 → debounce 후 자동 검색(2자 이상). 검색 버튼/Enter는 즉시 실행. */
+  function handleKeywordChange(next: string) {
+    setKeyword(next);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const q = next.trim();
+    if (q.length < 2) {
+      // 2자 미만이면 자동 검색 안 하고 결과 비움
+      seqRef.current++; // 진행 중이던 자동검색 결과 무효화
+      setTourResults([]);
+      setKakaoResults([]);
+      setState('idle');
+      return;
+    }
+    debounceRef.current = setTimeout(() => runSearch(q), 400);
+  }
+
+  // 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Enter') {
       e.preventDefault();
+      if (debounceRef.current) clearTimeout(debounceRef.current);
       runSearch();
     }
   }
 
-  function pickTour(place: Place) {
-    onSelect(tourToSelected(place));
+  /** 선택 확정 시 진행 중 자동검색/타이머를 정리(결과 다시 안 뜨게). */
+  function clearSearch(nextKeyword: string) {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    seqRef.current++; // 진행 중 요청 결과 무효화
     setTourResults([]);
     setKakaoResults([]);
-    setKeyword(place.name);
+    setState('idle');
+    setKeyword(nextKeyword);
+  }
+
+  function pickTour(place: Place) {
+    onSelect(tourToSelected(place));
+    clearSearch(place.name);
   }
 
   function pickKakao(item: kakao.maps.services.PlacesSearchResultItem) {
     onSelect(kakaoToSelected(item));
-    setTourResults([]);
-    setKakaoResults([]);
-    setKeyword(item.place_name);
+    clearSearch(item.place_name);
   }
 
   const hasResults = tourResults.length > 0 || kakaoResults.length > 0;
@@ -183,14 +224,14 @@ export function PlaceSearch({
             label={label}
             placeholder="장소명 검색 (예: 국립아시아문화전당)"
             value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
+            onChange={(e) => handleKeywordChange(e.target.value)}
             onKeyDown={handleKeyDown}
           />
         </div>
         <Button
           type="button"
           variant="secondary"
-          onClick={runSearch}
+          onClick={() => runSearch()}
           disabled={state === 'searching'}
           className="mb-[1px] shrink-0"
         >
@@ -220,24 +261,22 @@ export function PlaceSearch({
               <button
                 type="button"
                 onClick={() => pickTour(place)}
-                className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-surface-bg-alt transition-colors"
+                className="flex w-full flex-col gap-1 px-3 py-2.5 text-left hover:bg-surface-bg-alt transition-colors"
               >
-                <MapPin size={14} className="mt-0.5 shrink-0 text-brand" />
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-1.5">
-                    <span className="truncate text-sm font-medium text-ink">
-                      {place.name}
-                    </span>
-                    <span className="shrink-0 rounded-pill bg-brand-tint px-1.5 py-0.5 text-[10px] font-medium text-brand">
-                      {categoryLabel(place.category)}
-                    </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="truncate text-sm font-medium text-ink">
+                    {place.name}
                   </span>
-                  {place.address && (
-                    <span className="block truncate text-xs text-ink-3">
-                      {place.address}
-                    </span>
-                  )}
+                  <span className="shrink-0 rounded-pill bg-brand-tint px-1.5 py-0.5 text-[10px] font-medium text-brand">
+                    {categoryLabel(place.category)}
+                  </span>
                 </span>
+                {place.address && (
+                  <span className="flex items-start gap-1 text-[11px] text-ink-3">
+                    <MapPin size={11} className="mt-0.5 shrink-0" />
+                    <span className="truncate">{place.address}</span>
+                  </span>
+                )}
               </button>
             </li>
           ))}
@@ -259,14 +298,14 @@ export function PlaceSearch({
                 <button
                   type="button"
                   onClick={() => pickKakao(item)}
-                  className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-surface-bg-alt transition-colors"
+                  className="flex w-full flex-col gap-1 px-3 py-2.5 text-left hover:bg-surface-bg-alt transition-colors"
                 >
-                  <MapPin size={14} className="mt-0.5 shrink-0 text-ink-3" />
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-ink">
-                      {item.place_name}
-                    </span>
-                    <span className="block truncate text-xs text-ink-3">
+                  <span className="truncate text-sm font-medium text-ink">
+                    {item.place_name}
+                  </span>
+                  <span className="flex items-start gap-1 text-[11px] text-ink-3">
+                    <MapPin size={11} className="mt-0.5 shrink-0" />
+                    <span className="truncate">
                       {item.road_address_name || item.address_name}
                     </span>
                   </span>
@@ -277,11 +316,14 @@ export function PlaceSearch({
         </>
       )}
 
-      {!hasResults && state === 'idle' && keyword.trim() && (
-        <p className="mt-2 text-[11px] text-ink-3">
-          검색 버튼을 눌러 장소를 찾아보세요.
-        </p>
-      )}
+      {!hasResults &&
+        state === 'idle' &&
+        keyword.trim().length > 0 &&
+        keyword.trim().length < 2 && (
+          <p className="mt-2 text-[11px] text-ink-3">
+            두 글자 이상 입력하면 장소를 찾아드려요.
+          </p>
+        )}
     </div>
   );
 }

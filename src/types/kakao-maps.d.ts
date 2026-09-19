@@ -26,6 +26,8 @@ declare namespace kakao.maps {
   class Map {
     constructor(container: HTMLElement, options: MapOptions);
     setCenter(latlng: LatLng): void;
+    /** 현재 지도 중심 좌표 */
+    getCenter(): LatLng;
     /** 중심을 지정 좌표로 부드럽게 이동 */
     panTo(latlng: LatLng): void;
     setLevel(level: number): void;

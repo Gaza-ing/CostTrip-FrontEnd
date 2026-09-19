@@ -4,11 +4,13 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
+import { TimeSelect, type TimeSelectHandle } from '@/components/ui/TimeSelect';
 import { SlidePanel } from '@/components/ui/SlidePanel';
 import { HeaderActionButton } from '@/components/layout';
 import { useHeaderAction } from '@/hooks/use-header-action';
-import { CATEGORIES } from '@/lib/constants';
+import { PLAN_CATEGORIES } from '@/lib/constants';
 import { CategoryIcon } from '@/lib/category-icons';
+import { planCategoryColor } from '@/lib/category';
 import { KakaoMap } from '@/components/map/KakaoMap';
 import { PlaceSearch, type SelectedPlace } from '@/components/map/PlaceSearch';
 import { formatKRW, cn } from '@/lib/utils';
@@ -20,6 +22,8 @@ import {
   useCreatePlanItem,
   useUpdatePlanItem,
   useDeletePlanItem,
+  useReorderPlanItems,
+  useRouteLegs,
 } from '@/hooks/use-plan';
 import { createPlanItem } from '@/lib/api/plan-items';
 import { useQueryClient } from '@tanstack/react-query';
@@ -52,7 +56,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { PlanItem } from '@/types';
 
 interface PlanForm {
@@ -71,10 +75,9 @@ interface PlanForm {
 
 const EMPTY_FORM: PlanForm = {
   title: '',
-  categoryId: 'tour',
-  // 현재 시각이 아니라 00:00을 기본값으로 (브라우저 time input이 빈 값이면
-  // 현재 시각을 placeholder로 보여줘 헷갈리므로 명시적으로 자정 지정)
-  startTime: '00:00',
+  categoryId: 'attraction',
+  // 시작/종료 모두 비워둔다(시간 미지정 허용). 사용자가 필요할 때만 입력.
+  startTime: '',
   endTime: '',
   estimatedCost: 0,
   place: '',
@@ -117,6 +120,7 @@ export default function DayPlanPage() {
   const createItemMut = useCreatePlanItem(tripId, dayId ?? '');
   const updateItemMut = useUpdatePlanItem(tripId, dayId ?? '');
   const deleteItemMut = useDeletePlanItem(tripId, dayId ?? '');
+  const reorderMut = useReorderPlanItems(tripId, dayId ?? '');
 
   // 서버 데이터를 시간순 정렬한 파생값
   const serverSorted = useMemo(
@@ -164,6 +168,22 @@ export default function DayPlanPage() {
     [items],
   );
 
+  // 동선 좌표 그대로 구간별 이동시간 조회(순서 일치 보장)
+  const routePoints = useMemo(
+    () => mapMarkers.map((m) => ({ latitude: m.lat, longitude: m.lng })),
+    [mapMarkers],
+  );
+  const { data: routeLegsData } = useRouteLegs(routePoints);
+
+  // 각 마커에 "다음 구간까지 걸리는 시간(분)"을 붙여 동선 위에 표시
+  const mapMarkersWithLeg = useMemo(() => {
+    const legs = routeLegsData?.legs ?? [];
+    return mapMarkers.map((m, idx) => ({
+      ...m,
+      legMinToNext: idx < legs.length ? legs[idx].durationMin : undefined,
+    }));
+  }, [mapMarkers, routeLegsData]);
+
   // itemId → 동선 순번(1부터). 좌표가 있는 항목만 번호를 갖는다.
   const routeOrderById = useMemo(() => {
     const map: Record<string, number> = {};
@@ -194,6 +214,8 @@ export default function DayPlanPage() {
   // D-day 라벨: 클라이언트에서만 정확한 값 (suppressHydrationWarning으로 처리)
   const dayLabel = getDayLabelFromStart(dayIndex, tripStartDate);
   const [panelForm, setPanelForm] = useState<PlanForm>(EMPTY_FORM);
+  // 종료 시간 필드 참조(시작 시간 입력 완료 시 이어서 포커스).
+  const panelEndTimeRef = useRef<TimeSelectHandle>(null);
 
   function openEditPanel(item: PlanItem) {
     setEditingItem(item);
@@ -204,7 +226,7 @@ export default function DayPlanPage() {
       endTime: item.endTime || '',
       estimatedCost: item.estimatedCost,
       place: item.placeName ?? '',
-      memo: '',
+      memo: item.memo ?? '',
       lat: item.latitude ?? null,
       lng: item.longitude ?? null,
       nights: 1,
@@ -296,7 +318,7 @@ export default function DayPlanPage() {
       };
 
       // 숙소(stay)는 선택한 숙박 일수만큼 여러 Day에 동시 추가
-      const isStay = panelForm.categoryId === 'stay';
+      const isStay = panelForm.categoryId === 'lodging';
       const maxNights = Math.max(1, days.length - dayIndex); // 남은 일수 한도
       const nights = isStay
         ? Math.min(Math.max(1, panelForm.nights), maxNights)
@@ -344,12 +366,28 @@ export default function DayPlanPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
-  function handleDragEnd(event: DragEndEvent) {
+  async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIndex = items.findIndex((i) => i.id === active.id);
     const newIndex = items.findIndex((i) => i.id === over.id);
-    setOrderOverride(arrayMove(items, oldIndex, newIndex).map((i) => i.id));
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    const reordered = arrayMove(items, oldIndex, newIndex);
+    // 낙관적 업데이트: 화면 순서 먼저 반영
+    setOrderOverride(reordered.map((i) => i.id));
+
+    // 서버 저장: 최종 순서를 한 번에 보내 sortOrder 원자적 재부여(reorder API)
+    if (!dayId) return;
+    try {
+      await reorderMut.mutateAsync(reordered.map((i) => i.id));
+      // 서버 정렬 결과가 캐시에 반영됐으니 로컬 오버라이드 해제
+      setOrderOverride(null);
+    } catch {
+      // 실패 시 롤백
+      setOrderOverride(null);
+      toast.error('순서 저장에 실패했어요');
+    }
   }
 
   function deleteItem(id: string) {
@@ -504,8 +542,8 @@ export default function DayPlanPage() {
 
           <KakaoMap
             height={420}
-            markers={mapMarkers}
-            showRoute={mapMarkers.length >= 2}
+            markers={mapMarkersWithLeg}
+            showRoute={mapMarkersWithLeg.length >= 2}
           />
 
           {mapMarkers.length === 0 ? (
@@ -552,7 +590,7 @@ export default function DayPlanPage() {
               카테고리
             </label>
             <div className="flex flex-wrap gap-2">
-              {CATEGORIES.map((cat) => (
+              {PLAN_CATEGORIES.map((cat) => (
                 <button
                   key={cat.id}
                   type="button"
@@ -574,7 +612,7 @@ export default function DayPlanPage() {
           </div>
 
           {/* 숙박 일수 (숙소 카테고리 + 신규 추가일 때만) */}
-          {panelForm.categoryId === 'stay' && !editingItem && (
+          {panelForm.categoryId === 'lodging' && !editingItem && (
             <div>
               <label className="mb-2 block text-sm font-medium text-ink-2">
                 숙박 일수
@@ -665,21 +703,17 @@ export default function DayPlanPage() {
 
           {/* 시간 */}
           <div className="grid grid-cols-2 gap-4">
-            <Input
+            <TimeSelect
               label="시작 시간"
-              type="time"
               value={panelForm.startTime}
-              onChange={(e) =>
-                setPanelForm((f) => ({ ...f, startTime: e.target.value }))
-              }
+              onChange={(v) => setPanelForm((f) => ({ ...f, startTime: v }))}
+              onComplete={() => panelEndTimeRef.current?.focusHour()}
             />
-            <Input
+            <TimeSelect
+              ref={panelEndTimeRef}
               label="종료 시간"
-              type="time"
               value={panelForm.endTime}
-              onChange={(e) =>
-                setPanelForm((f) => ({ ...f, endTime: e.target.value }))
-              }
+              onChange={(v) => setPanelForm((f) => ({ ...f, endTime: v }))}
             />
           </div>
 
@@ -816,13 +850,10 @@ function SortableTimelineItem({
         <p className="text-xs text-ink-3">
           <Badge
             variant="category"
-            category={
-              item.categoryId as
-                'stay' | 'move' | 'food' | 'tour' | 'shop' | 'etc'
-            }
+            category={planCategoryColor(item.categoryId)}
             className="mr-1"
           >
-            {CATEGORIES.find((c) => c.id === item.categoryId)?.label}
+            {PLAN_CATEGORIES.find((c) => c.id === item.categoryId)?.label}
           </Badge>
           · {placeName || (item.latitude ? '위치 지정됨' : '장소 미정')}
           {item.endTime &&
