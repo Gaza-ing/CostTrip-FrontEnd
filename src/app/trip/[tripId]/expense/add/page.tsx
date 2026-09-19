@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Plus, CircleDollarSign } from 'lucide-react';
+import { X, Plus, CircleDollarSign, ArrowLeft } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Select } from '@/components/ui/Select';
 import { CATEGORIES } from '@/lib/constants';
@@ -8,9 +8,45 @@ import { CategoryIcon } from '@/lib/category-icons';
 import { formatKRW, cn } from '@/lib/utils';
 import { useMembers } from '@/hooks/use-members';
 import { useCreateExpense } from '@/hooks/use-expenses';
+import { useTrip } from '@/hooks/use-trips';
+import { useDays } from '@/hooks/use-plan';
 import { toast } from '@/stores/toast-store';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
+
+/** ISO date(YYYY-MM-DD) → "MM.DD" 표기. */
+function formatDayLabel(isoDate: string): string {
+  const parts = isoDate.split('-');
+  if (parts.length < 3) return isoDate;
+  return `${parts[1]}.${parts[2]}`;
+}
+
+/** 오늘 로컬 날짜 "YYYY-MM-DD". */
+function todayLocalDate(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** 현재 로컬 시각 "HH:mm". */
+function nowLocalTime(): string {
+  const d = new Date();
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${h}:${min}`;
+}
+
+/** 로컬 날짜+시각 문자열을 ISO(UTC)로 결합. 잘못된 값이면 null. */
+function toIsoDateTime(date: string, time: string): string | null {
+  if (!date) return null;
+  const [h, m] = (time || '00:00').split(':').map(Number);
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return null;
+  d.setHours(h || 0, m || 0, 0, 0);
+  return d.toISOString();
+}
 
 export default function ExpenseAddPage() {
   const params = useParams();
@@ -18,6 +54,8 @@ export default function ExpenseAddPage() {
   const tripId = params.tripId as string;
 
   const { data: members = [] } = useMembers(tripId);
+  const { data: trip } = useTrip(tripId);
+  const { data: days = [] } = useDays(tripId, trip?.startDate);
   const createExpenseMut = useCreateExpense(tripId);
 
   const effectiveMembers = members;
@@ -27,13 +65,27 @@ export default function ExpenseAddPage() {
   const [amount, setAmount] = useState('');
   const [title, setTitle] = useState('');
   const [categoryId, setCategoryId] = useState('food');
+  // 지출이 발생한 날짜(Day). ''=미지정. 일자별 지출 추이는 이 값으로 집계된다.
+  const [dayId, setDayId] = useState('');
+  // 실제 지출 시각(spent_at). 날짜+시각을 따로 받아 저장 시 ISO로 합친다.
+  // 기본값: 오늘 날짜 + 현재 시각.
+  const [spentDate, setSpentDate] = useState(() => todayLocalDate());
+  const [spentTime, setSpentTime] = useState(() => nowLocalTime());
   const [paidByMemberId, setPaidByMemberId] = useState('');
   const effectivePaidBy = paidByMemberId || effectiveMembers[0]?.id || '';
   const [memo, setMemo] = useState('');
   const [splitMethod, setSplitMethod] = useState<
     'equal' | 'ratio' | 'shares' | 'exact' | 'none'
   >(isGroupTrip ? 'equal' : 'none');
+  // 멤버별 가중치(ratio/shares) / 금액(exact) 입력값. key=memberId, value=문자열 입력.
+  const [splitInputs, setSplitInputs] = useState<Record<string, string>>({});
   const [receipts, setReceipts] = useState<File[]>([]);
+
+  function setSplitInput(memberId: string, value: string) {
+    // 숫자만 허용(빈 문자열 허용)
+    const clean = value.replace(/[^0-9]/g, '');
+    setSplitInputs((prev) => ({ ...prev, [memberId]: clean }));
+  }
 
   // 유효성
   const [errors, setErrors] = useState<{ amount?: string; title?: string }>({});
@@ -71,6 +123,36 @@ export default function ExpenseAddPage() {
         ? [effectivePaidBy]
         : effectiveMembers.map((m) => m.id);
 
+    // 방식별 분담 페이로드 계산
+    let weights: Record<string, number> | null = null;
+    let exactAmounts: Record<string, number> | null = null;
+
+    if (splitMethod === 'ratio') {
+      weights = {};
+      for (const m of effectiveMembers) {
+        const w = parseInt(splitInputs[m.id] || '0', 10) || 0;
+        if (w > 0) weights[m.id] = w;
+      }
+      if (Object.keys(weights).length === 0) {
+        toast.error('비율을 1명 이상 입력해주세요');
+        return;
+      }
+    } else if (splitMethod === 'exact') {
+      exactAmounts = {};
+      let sum = 0;
+      for (const m of effectiveMembers) {
+        const v = parseInt(splitInputs[m.id] || '0', 10) || 0;
+        exactAmounts[m.id] = v;
+        sum += v;
+      }
+      if (sum !== parsedAmount) {
+        toast.error(
+          `금액 합계(${sum.toLocaleString()}원)가 지출 금액과 달라요`,
+        );
+        return;
+      }
+    }
+
     createExpenseMut.mutate(
       {
         categoryId,
@@ -80,7 +162,11 @@ export default function ExpenseAddPage() {
         splitMethod,
         isSettlementTarget: splitMethod !== 'none',
         participantIds,
+        dayId: dayId || null,
+        spentAt: toIsoDateTime(spentDate, spentTime),
         memo: memo.trim() || null,
+        weights,
+        exactAmounts,
       },
       {
         onSuccess: () => router.push(`/trip/${tripId}/progress`),
@@ -111,6 +197,19 @@ export default function ExpenseAddPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
+      {/* 뒤로 가기 */}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => router.push(`/trip/${tripId}/expense`)}
+          className="flex h-9 w-9 items-center justify-center rounded-sm border border-surface-line text-ink-3 transition-colors hover:bg-surface-bg-alt"
+          aria-label="지출 내역으로 돌아가기"
+        >
+          <ArrowLeft size={16} />
+        </button>
+        <h1 className="text-lg font-bold text-ink">지출 추가</h1>
+      </div>
+
       {/* 금액 */}
       <Card>
         <label className="mb-2 block text-xs font-medium text-ink-3">
@@ -192,9 +291,54 @@ export default function ExpenseAddPage() {
         </div>
       </Card>
 
-      {/* 결제자 + 메모 */}
+      {/* 날짜/시각 + Day + 결제자 + 메모 */}
       <Card>
         <div className="space-y-4">
+          {/* 지출 일시 (실제 발생 시각) */}
+          <div>
+            <label className="mb-2 block text-xs font-medium text-ink-3">
+              지출 일시
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={spentDate}
+                onChange={(e) => setSpentDate(e.target.value)}
+                className="h-11 flex-1 rounded-sm border border-surface-line bg-surface-card px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
+              />
+              <input
+                type="time"
+                value={spentTime}
+                onChange={(e) => setSpentTime(e.target.value)}
+                className="h-11 w-32 rounded-sm border border-surface-line bg-surface-card px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
+              />
+            </div>
+          </div>
+
+          {days.length > 0 && (
+            <div>
+              <label className="mb-2 block text-xs font-medium text-ink-3">
+                일정 날짜 (Day)
+              </label>
+              <Select
+                aria-label="지출 날짜"
+                value={dayId}
+                onChange={setDayId}
+                triggerClassName="h-11 px-4"
+                options={[
+                  { value: '', label: '날짜 미지정' },
+                  ...days.map((d, i) => ({
+                    value: d.id,
+                    label: `Day ${i + 1}${d.date ? ` · ${formatDayLabel(d.date)}` : ''}`,
+                  })),
+                ]}
+              />
+              <p className="mt-1.5 text-[11px] text-ink-3">
+                Day를 지정하면 진행 대시보드의 일자별 지출 추이에 반영돼요.
+              </p>
+            </div>
+          )}
+
           <div>
             <label className="mb-2 block text-xs font-medium text-ink-3">
               결제자
@@ -278,12 +422,11 @@ export default function ExpenseAddPage() {
           <label className="mb-3 block text-xs font-medium text-ink-3">
             분담 설정
           </label>
-          <div className="grid grid-cols-5 gap-2 mb-4">
+          <div className="grid grid-cols-4 gap-2 mb-4">
             {(
               [
                 { id: 'equal', label: '균등' },
                 { id: 'ratio', label: '비율' },
-                { id: 'shares', label: '지분' },
                 { id: 'exact', label: '금액지정' },
                 { id: 'none', label: '개인' },
               ] as const
@@ -333,15 +476,126 @@ export default function ExpenseAddPage() {
             </div>
           )}
 
-          {splitMethod !== 'equal' && splitMethod !== 'none' && (
-            <div className="rounded-sm border border-dashed border-surface-line-strong bg-surface-bg p-4 text-center">
-              <span className="text-xs text-ink-3">
-                {splitMethod === 'ratio' && '비율 입력은 추후 지원 예정'}
-                {splitMethod === 'shares' && '지분 입력은 추후 지원 예정'}
-                {splitMethod === 'exact' && '금액 지정은 추후 지원 예정'}
-              </span>
+          {/* 비율: 멤버별 가중치 입력 → 비율대로 분배 미리보기 */}
+          {splitMethod === 'ratio' && (
+            <div className="rounded-sm border border-surface-line bg-surface-bg p-3">
+              <p className="mb-2 text-xs font-medium text-ink-3">
+                멤버별 비율을 입력하세요 (예: 6, 4)
+              </p>
+              <div className="space-y-2">
+                {effectiveMembers.map((m) => {
+                  const w = parseInt(splitInputs[m.id] || '0', 10) || 0;
+                  const totalW = effectiveMembers.reduce(
+                    (s, mm) =>
+                      s + (parseInt(splitInputs[mm.id] || '0', 10) || 0),
+                    0,
+                  );
+                  const share =
+                    totalW > 0 ? Math.floor((parsedAmount * w) / totalW) : 0;
+                  return (
+                    <div
+                      key={m.id}
+                      className="flex items-center justify-between gap-2"
+                    >
+                      <span className="flex items-center gap-2 text-sm text-ink">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/10 text-[10px] font-semibold text-brand">
+                          {m.displayName.charAt(0)}
+                        </span>
+                        {m.displayName}
+                        {m.id === effectivePaidBy && (
+                          <span className="rounded-pill bg-brand-soft px-1.5 py-0.5 text-[10px] font-medium text-brand">
+                            결제자
+                          </span>
+                        )}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={splitInputs[m.id] || ''}
+                          onChange={(e) => setSplitInput(m.id, e.target.value)}
+                          placeholder="0"
+                          className="h-8 w-16 rounded-xs border border-surface-line bg-surface-card px-2 text-right text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
+                        />
+                        <span className="w-20 text-right text-xs text-ink-3">
+                          {parsedAmount > 0 ? formatKRW(share) : '₩0'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
+
+          {/* 금액지정: 멤버별 금액 입력 + 합계 검증 */}
+          {splitMethod === 'exact' &&
+            (() => {
+              const sum = effectiveMembers.reduce(
+                (s, m) => s + (parseInt(splitInputs[m.id] || '0', 10) || 0),
+                0,
+              );
+              const diff = parsedAmount - sum;
+              return (
+                <div className="rounded-sm border border-surface-line bg-surface-bg p-3">
+                  <p className="mb-2 text-xs font-medium text-ink-3">
+                    멤버별 금액을 입력하세요. 합계가 지출 금액과 같아야 해요.
+                  </p>
+                  <div className="space-y-2">
+                    {effectiveMembers.map((m) => (
+                      <div
+                        key={m.id}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <span className="flex items-center gap-2 text-sm text-ink">
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand/10 text-[10px] font-semibold text-brand">
+                            {m.displayName.charAt(0)}
+                          </span>
+                          {m.displayName}
+                        </span>
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-ink-3">
+                            ₩
+                          </span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={
+                              splitInputs[m.id]
+                                ? parseInt(
+                                    splitInputs[m.id],
+                                    10,
+                                  ).toLocaleString()
+                                : ''
+                            }
+                            onChange={(e) =>
+                              setSplitInput(m.id, e.target.value)
+                            }
+                            placeholder="0"
+                            className="h-8 w-28 rounded-xs border border-surface-line bg-surface-card pl-5 pr-2 text-right text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div
+                    className={cn(
+                      'mt-3 flex items-center justify-between border-t border-surface-line pt-2 text-xs',
+                      diff === 0 ? 'text-ok-text' : 'text-danger-text',
+                    )}
+                  >
+                    <span>합계 {formatKRW(sum)}</span>
+                    <span>
+                      {diff === 0
+                        ? '금액이 일치해요'
+                        : diff > 0
+                          ? `${formatKRW(diff)} 부족`
+                          : `${formatKRW(Math.abs(diff))} 초과`}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
         </Card>
       )}
 

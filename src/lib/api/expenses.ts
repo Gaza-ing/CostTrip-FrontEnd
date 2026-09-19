@@ -19,6 +19,7 @@ interface BackendExpense {
   paidByMemberId: string;
   splitMethod: string;
   isSettlementTarget: boolean;
+  dayId: string | null;
   spentAt: string;
   memo: string | null;
 }
@@ -45,7 +46,7 @@ function normalize(
   return {
     id: e.id,
     tripId: e.tripId,
-    dayId: null,
+    dayId: e.dayId ?? null,
     categoryId: uuidToFront.get(e.categoryId) ?? 'etc',
     amount: e.amount,
     currencyCode: 'KRW',
@@ -76,6 +77,8 @@ export interface ExpenseInput {
   isSettlementTarget: boolean;
   participantIds: string[];
   dayId?: string | null;
+  /** 지출 발생 시각(ISO). 미지정이면 서버가 현재 시각을 쓴다. */
+  spentAt?: string | null;
   memo?: string | null;
   weights?: Record<string, number> | null;
   exactAmounts?: Record<string, number> | null;
@@ -105,6 +108,7 @@ export async function createExpense(
       splitMethod: input.splitMethod,
       isSettlementTarget: input.isSettlementTarget,
       dayId: input.dayId ?? null,
+      spentAt: input.spentAt ?? null,
       memo: input.memo ?? null,
       participantIds: input.participantIds,
       weights: input.weights ?? null,

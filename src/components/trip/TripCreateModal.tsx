@@ -18,7 +18,7 @@ import {
   GWANGJU_AREA_CODE,
 } from '@/hooks/use-places';
 import { formatKRW } from '@/lib/utils';
-import { Search, ChevronDown, Lightbulb, MapPin } from 'lucide-react';
+import { Search, ChevronDown, MapPin, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -74,6 +74,17 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
   const [inviteChecking, setInviteChecking] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // 수동으로 더 잡는 인원(아직 계정 없는 동행 등). 초대 멤버 수에 더해진다.
+  // 총 인원 = 멤버 수 + extraHeadcount. 멤버를 추가/제거해도 이 값은 유지된다.
+  const [extraHeadcount, setExtraHeadcount] = useState(0);
+  const totalHeadcount = members.length + extraHeadcount;
+
+  /** 인원 입력을 직접 바꿀 때: 멤버 수 미만이면 0으로, 그 이상은 초과분을 extra로. */
+  function handleHeadcountChange(value: number) {
+    const next = Number.isNaN(value) ? members.length : value;
+    setExtraHeadcount(Math.max(0, next - members.length));
+  }
+
   // 목적지 검색어(입력) + 디바운스된 검색어(질의)
   const [placeQuery, setPlaceQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -103,6 +114,20 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
     });
     return unique.slice(0, 8);
   }, [isSearchMode, searchResults, gwangjuPlaces]);
+
+  /**
+   * 목적지 입력창에서 엔터 처리.
+   * 엔터로 폼이 통째로 submit(=여행 생성)되는 것을 막고, "검색"만 한다.
+   * - 디바운스를 기다리지 않고 현재 입력값으로 즉시 검색을 질의한다.
+   * - 자동 선택은 하지 않는다(엔터 시점엔 결과가 아직 없어 오선택되던 문제 방지).
+   *   결과는 아래 칩에서 사용자가 직접 고른다.
+   */
+  function handleDestinationKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault(); // 폼 submit 차단(엔터로 바로 생성되는 문제 방지)
+    // 입력값으로 즉시 검색 질의(디바운스 건너뜀)
+    setDebouncedQuery(form.destination.trim());
+  }
 
   function validate() {
     const newErrors: Record<string, string> = {};
@@ -171,6 +196,11 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
     );
   }
 
+  /** 초대 목록에서 멤버 제거(소유자는 제거 불가). */
+  function handleRemoveMember(memberId: string) {
+    setMembers((prev) => prev.filter((m) => m.id !== memberId));
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
@@ -183,7 +213,7 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
         destination: form.destination,
         startDate: form.startDate,
         endDate: form.endDate,
-        headcount: members.length,
+        headcount: totalHeadcount,
         totalBudget: form.totalBudget,
         currencyCode: 'KRW',
         tripTimeZone: 'Asia/Seoul',
@@ -195,7 +225,7 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
           setTripInfo({
             title: form.title || form.destination,
             destination: form.destination,
-            headcount: members.length,
+            headcount: totalHeadcount,
           });
           setTripDates(form.startDate, form.endDate);
 
@@ -247,7 +277,7 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
   const summaryParts = [
     form.destination || '목적지',
     dayCount ? `${dayCount - 1}박${dayCount}일` : '',
-    `${members.length}명`,
+    `${totalHeadcount}명`,
     form.totalBudget ? formatKRW(form.totalBudget) : '',
   ].filter(Boolean);
 
@@ -270,23 +300,6 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
         {/* 스크롤 영역 */}
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5">
           <div className="space-y-5">
-            {/* 예산 추천 배너 */}
-            <div className="flex gap-2.5 rounded-sm bg-brand-tint p-4">
-              <Lightbulb size={16} className="mt-0.5 shrink-0 text-brand" />
-              <div>
-                <p className="text-sm text-ink">
-                  일정 일수에 맞춰 카테고리별 예산을 자동 추천해 드려요.{' '}
-                  <span className="inline-flex items-center rounded-pill bg-surface-bg-alt px-2 py-0.5 text-xs text-ink-3">
-                    예정
-                  </span>
-                </p>
-                <p className="mt-1 text-xs text-ink-3">
-                  추천 실행은 아직 제공하지 않아요. 누르면 예산 설정 화면으로만
-                  이동해요.
-                </p>
-              </div>
-            </div>
-
             {/* 여행 이름 */}
             <Input
               label="여행 이름"
@@ -317,6 +330,7 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
                     setPlaceQuery(v);
                     setErrors((prev) => ({ ...prev, destination: '' }));
                   }}
+                  onKeyDown={handleDestinationKeyDown}
                   className="h-10 w-full rounded-xs border border-surface-line bg-surface-card pl-9 pr-3 text-sm text-ink placeholder:text-ink-3 focus:outline-none focus:ring-2 focus:ring-brand"
                 />
               </div>
@@ -392,11 +406,14 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
                 error={errors.endDate}
               />
               <Input
-                label="인원 (자동)"
+                label="인원"
                 type="number"
-                value={members.length.toString()}
-                readOnly
-                hint="멤버를 초대하면 자동으로 늘어나요"
+                min={members.length}
+                value={totalHeadcount.toString()}
+                onChange={(e) =>
+                  handleHeadcountChange(parseInt(e.target.value, 10))
+                }
+                hint="멤버 초대 시 자동 반영 · 직접 조절 가능"
               />
             </div>
 
@@ -472,22 +489,36 @@ export function TripCreateModal({ open, onClose }: TripCreateModalProps) {
                     {/* 역할 */}
                     {member.role === 'owner' ? (
                       <span className="shrink-0 rounded-xs border border-surface-line px-2 py-1 text-xs text-ink-3">
-                        소유자
+                        owner
                       </span>
                     ) : (
-                      <Select
-                        aria-label="멤버 역할"
-                        value={member.role}
-                        onChange={(v) =>
-                          handleRoleChange(member.id, v as 'editor' | 'viewer')
-                        }
-                        className="w-24 shrink-0"
-                        triggerClassName="h-8 px-2 text-xs"
-                        options={[
-                          { value: 'editor', label: '편집' },
-                          { value: 'viewer', label: '보기' },
-                        ]}
-                      />
+                      <>
+                        <Select
+                          aria-label="멤버 역할"
+                          value={member.role}
+                          onChange={(v) =>
+                            handleRoleChange(
+                              member.id,
+                              v as 'editor' | 'viewer',
+                            )
+                          }
+                          className="w-24 shrink-0"
+                          triggerClassName="h-7 px-2 text-xs"
+                          options={[
+                            { value: 'editor', label: 'editor' },
+                            { value: 'viewer', label: 'viewer' },
+                          ]}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMember(member.id)}
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xs border border-surface-line text-ink-3 transition-colors hover:border-danger hover:text-danger"
+                          aria-label={`${member.name} 초대 목록에서 제거`}
+                          title="초대 목록에서 제거"
+                        >
+                          <X size={13} />
+                        </button>
+                      </>
                     )}
                   </div>
                 ))}

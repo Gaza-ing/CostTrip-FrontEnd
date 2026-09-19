@@ -11,6 +11,17 @@ interface TripDateEditorProps {
   onSave: (startDate: string, endDate: string) => void;
 }
 
+/** ISO date 두 개로 일수 계산(포함). 잘못된 값이면 null. */
+function daySpan(start: string, end: string): number | null {
+  if (!start || !end) return null;
+  return (
+    Math.ceil(
+      (new Date(end).getTime() - new Date(start).getTime()) /
+        (1000 * 60 * 60 * 24),
+    ) + 1
+  );
+}
+
 export function TripDateEditor({
   startDate,
   endDate,
@@ -24,21 +35,29 @@ export function TripDateEditor({
     setOpen(true);
   }
 
+  const originalDayCount = daySpan(startDate, endDate);
+  const dayCount = daySpan(form.startDate, form.endDate);
+
+  // 기간이 줄어드는지 (줄어들면 잘려나가는 날짜의 일정이 삭제될 수 있음)
+  const isShrinking =
+    originalDayCount != null && dayCount != null && dayCount < originalDayCount;
+  const removedDays = isShrinking ? originalDayCount - dayCount : 0;
+
   function handleSave() {
     if (form.startDate && form.endDate && form.startDate <= form.endDate) {
+      // 기간 단축 시 마지막 날들의 일정이 삭제되므로 한 번 더 확인
+      if (isShrinking) {
+        const ok = window.confirm(
+          `여행 기간이 ${removedDays}일 줄어들어요.\n` +
+            `마지막 ${removedDays}일에 등록된 일정은 삭제됩니다. ` +
+            `(지출 기록은 '날짜 미지정'으로 보존돼요)\n\n계속할까요?`,
+        );
+        if (!ok) return;
+      }
       onSave(form.startDate, form.endDate);
       setOpen(false);
     }
   }
-
-  const dayCount =
-    form.startDate && form.endDate
-      ? Math.ceil(
-          (new Date(form.endDate).getTime() -
-            new Date(form.startDate).getTime()) /
-            (1000 * 60 * 60 * 24),
-        ) + 1
-      : null;
 
   return (
     <div className="relative inline-block">
@@ -103,6 +122,13 @@ export function TripDateEditor({
               {dayCount && (
                 <p className="text-xs text-ink-3">
                   {dayCount - 1}박 {dayCount}일
+                </p>
+              )}
+
+              {isShrinking && (
+                <p className="rounded-xs bg-warn-soft px-2 py-1.5 text-xs text-warn-text">
+                  기간이 {removedDays}일 줄어들어요. 마지막 {removedDays}일의
+                  일정은 삭제됩니다. (지출은 날짜 미지정으로 보존)
                 </p>
               )}
 

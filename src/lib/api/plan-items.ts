@@ -171,6 +171,27 @@ export async function reorderPlanItems(
   return data.map(normalize);
 }
 
+/** 여행 메인 Day 타임라인의 한 줄 요약. */
+export interface DayOverviewItem {
+  dayId: string;
+  dayIndex: number; // 1부터(백엔드 원본)
+  itemCount: number;
+  titles: string[]; // sort_order순 일정 제목
+  estimatedTotal: number; // 당일 예상비용 합
+}
+
+/**
+ * 여행 전체 Day별 요약(메인 페이지 타임라인).
+ * Day마다 개별 호출하지 않고 한 번에 제목 목록·예상비용 합을 받는다.
+ */
+export function fetchDaysOverview(
+  tripId: string,
+): Promise<{ days: DayOverviewItem[] }> {
+  return apiClient.get<{ days: DayOverviewItem[] }>(
+    `/trips/${tripId}/days-overview`,
+  );
+}
+
 /** Day 요약 (일정 추가 페이지 하단 바). */
 export interface DaySummary {
   itemCount: number;

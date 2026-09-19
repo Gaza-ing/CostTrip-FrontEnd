@@ -217,28 +217,33 @@ export function Sidebar({ tripId, tripTitle }: SidebarProps) {
               </p>
             </div>
 
-            {/* 계획/진행 세그먼트 (경로 기반 자동 표시) */}
+            {/* 계획/진행 세그먼트 토글: 클릭 시 각 시작 화면으로 이동.
+                계획 → 여행 메인 / 진행 → 진행 대시보드. 활성 표시는 경로 기반. */}
             <div className="mx-3 mb-4 inline-flex w-[calc(100%-24px)] items-center rounded-pill bg-surface-bg-alt p-1">
-              <span
+              <Link
+                href={`/trip/${tripId}`}
+                aria-current={activeMode === 'plan' ? 'page' : undefined}
                 className={cn(
-                  'flex-1 rounded-pill px-3 py-1.5 text-xs font-medium text-center transition-all',
+                  'flex-1 rounded-pill px-3 py-1.5 text-center text-xs font-medium transition-all',
                   activeMode === 'plan'
                     ? 'bg-surface-card text-brand shadow-sm'
-                    : 'text-ink-3',
+                    : 'text-ink-3 hover:text-ink-2',
                 )}
               >
                 계획
-              </span>
-              <span
+              </Link>
+              <Link
+                href={`/trip/${tripId}/progress`}
+                aria-current={activeMode === 'progress' ? 'page' : undefined}
                 className={cn(
-                  'flex-1 rounded-pill px-3 py-1.5 text-xs font-medium text-center transition-all',
+                  'flex-1 rounded-pill px-3 py-1.5 text-center text-xs font-medium transition-all',
                   activeMode === 'progress'
                     ? 'bg-surface-card text-brand shadow-sm'
-                    : 'text-ink-3',
+                    : 'text-ink-3 hover:text-ink-2',
                 )}
               >
                 진행
-              </span>
+              </Link>
             </div>
 
             {tripNav.map((group) => (

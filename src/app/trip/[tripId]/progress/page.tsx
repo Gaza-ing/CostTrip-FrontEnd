@@ -5,13 +5,13 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { HeaderActionButton } from '@/components/layout';
 import { useHeaderAction } from '@/hooks/use-header-action';
-import { CATEGORIES } from '@/lib/constants';
+import { CATEGORIES, splitMethodLabel } from '@/lib/constants';
 import { CategoryIcon } from '@/lib/category-icons';
 import { formatKRW, cn } from '@/lib/utils';
 import { useTrip } from '@/hooks/use-trips';
 import { useMembers } from '@/hooks/use-members';
 import { useExpenses } from '@/hooks/use-expenses';
-import { useBudgets } from '@/hooks/use-budgets';
+import { useBudgets, usePlanCostSummary } from '@/hooks/use-budgets';
 import { useDays } from '@/hooks/use-plan';
 import { Plus } from 'lucide-react';
 import Link from 'next/link';
@@ -54,7 +54,11 @@ export default function ProgressDashboardPage() {
   const { data: members = [] } = useMembers(tripId);
   const { data: expenses = [] } = useExpenses(tripId);
   const { data: budgetData } = useBudgets(tripId);
+  const { data: planCostSummary } = usePlanCostSummary(tripId);
   const { data: days = [] } = useDays(tripId, trip?.startDate);
+
+  // 카테고리별 예상 지출(일정의 예상비용 합). "계획 vs 실지출"의 계획 값.
+  const plannedByCategory = planCostSummary?.byCategory ?? {};
 
   const tripHeadcount = members.length || trip?.headcount || 1;
 
@@ -95,21 +99,55 @@ export default function ProgressDashboardPage() {
   const totalDays = days.length;
 
   // 경과 일수: 오늘 기준 여행 시작일로부터 며칠 지났는지 (0~totalDays)
+  // dayDiff: 시작일 대비 오늘까지의 일수 차이(0 = 여행 첫날). 음수면 아직 시작 전.
+  let dayDiff = 0;
   let elapsedDays = 0;
   if (trip?.startDate && totalDays > 0) {
     const start = new Date(trip.startDate);
     const today = new Date();
-    const diff = Math.floor(
+    dayDiff = Math.floor(
       (today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
     );
-    elapsedDays = Math.max(0, Math.min(diff + 1, totalDays));
+    elapsedDays = Math.max(0, Math.min(dayDiff + 1, totalDays));
   }
 
-  // 지출에 day 정보가 없어(백엔드 응답 미포함) 일자별 금액은 표시하지 않음.
+  // 여행 진행 상태: 시작 전 / 진행 중 / 종료.
+  // "잔여 일수" 같은 표현을 상황에 맞게 자연스럽게 바꾸는 데 쓴다.
+  const tripPhase: 'before' | 'ongoing' | 'after' =
+    totalDays === 0
+      ? 'before'
+      : dayDiff < 0
+        ? 'before'
+        : dayDiff >= totalDays
+          ? 'after'
+          : 'ongoing';
+  const daysUntilStart = dayDiff < 0 ? -dayDiff : 0; // 시작까지 남은 일수
+  const remainingTripDays = Math.max(0, totalDays - elapsedDays); // 진행 중 남은 일수
+
+  // 상태에 맞는 진행 라벨 (도넛 요약/추이 헤더 공용)
+  const progressLabel =
+    tripPhase === 'before'
+      ? totalDays > 0
+        ? `${totalDays}일 여행 · 시작 ${daysUntilStart}일 전`
+        : '일정 미정'
+      : tripPhase === 'after'
+        ? `여행 종료 · 총 ${totalDays}일`
+        : `${totalDays}일 중 ${elapsedDays}일차 진행 중`;
+
+  // dayId별 지출 합계 (날짜 지정된 지출만 집계)
+  const spentByDay: Record<string, number> = {};
+  for (const e of expenses) {
+    if (e.dayId) spentByDay[e.dayId] = (spentByDay[e.dayId] || 0) + e.amount;
+  }
+  // 날짜 미지정 지출 합 (일자별 추이에는 안 잡히므로 별도 안내에 사용)
+  const undatedSpent = expenses
+    .filter((e) => !e.dayId)
+    .reduce((s, e) => s + e.amount, 0);
+
   const dailyData = days.map((day, i) => ({
     dayIndex: i,
     label: `Day${i + 1}`,
-    amount: 0,
+    amount: spentByDay[day.id] || 0,
     isFuture: i >= elapsedDays,
   }));
 
@@ -329,9 +367,21 @@ export default function ProgressDashboardPage() {
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-ink-3">잔여 일수</span>
+              <span className="text-ink-3">
+                {tripPhase === 'before'
+                  ? '여행 시작'
+                  : tripPhase === 'after'
+                    ? '여행 기간'
+                    : '남은 일수'}
+              </span>
               <span className="font-semibold text-ink">
-                {Math.max(0, totalDays - elapsedDays)}일
+                {tripPhase === 'before'
+                  ? totalDays > 0
+                    ? `${daysUntilStart}일 전`
+                    : '미정'
+                  : tripPhase === 'after'
+                    ? `총 ${totalDays}일`
+                    : `${remainingTripDays}일 남음`}
               </span>
             </div>
           </div>
@@ -360,14 +410,13 @@ export default function ProgressDashboardPage() {
             {budgetCategories.map((bc) => {
               const cat = CATEGORIES.find((c) => c.id === bc.categoryId);
               const spent = spentByCategory[bc.categoryId] || 0;
-              const pct =
-                bc.budgetAmount > 0
-                  ? Math.round((spent / bc.budgetAmount) * 100)
-                  : spent > 0
-                    ? 999
-                    : 0;
-              const isOver = pct >= 100;
-              const isWarn = pct >= 80 && pct < 100;
+              // 계획 = 예상 지출(일정 기반). 실지출을 이 계획과 비교한다.
+              const planned = plannedByCategory[bc.categoryId] || 0;
+              // 계획(예상 지출)이 없으면 비율 계산이 무의미 → 퍼센트 대신 별도 표기.
+              const noPlan = planned <= 0;
+              const pct = noPlan ? 0 : Math.round((spent / planned) * 100);
+              const isOver = !noPlan && pct >= 100;
+              const isWarn = !noPlan && pct >= 80 && pct < 100;
 
               const barColor = isOver
                 ? 'bg-red-500'
@@ -380,7 +429,7 @@ export default function ProgressDashboardPage() {
                   key={bc.id}
                   href={`/trip/${tripId}/expense?category=${bc.categoryId}`}
                   className="block group"
-                  aria-label={`${cat?.label} 실지출 ${formatKRW(spent)} / 예산 ${formatKRW(bc.budgetAmount)} ${isOver ? '초과' : isWarn ? '임박' : '정상'}`}
+                  aria-label={`${cat?.label} 실지출 ${formatKRW(spent)} / 계획(예상 지출) ${formatKRW(planned)} ${noPlan ? '계획 미설정' : isOver ? '초과' : isWarn ? '임박' : '정상'}`}
                 >
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-2">
@@ -398,17 +447,26 @@ export default function ProgressDashboardPage() {
                       {isWarn && <Badge variant="warn">임박</Badge>}
                     </div>
                     <span className="text-xs text-ink-3">
-                      {formatKRW(spent)} / {formatKRW(bc.budgetAmount)} · {pct}%
+                      {noPlan
+                        ? spent > 0
+                          ? `${formatKRW(spent)} · 계획 없음`
+                          : '계획·지출 없음'
+                        : `${formatKRW(spent)} / ${formatKRW(planned)} · ${pct}%`}
                     </span>
                   </div>
                   <div className="h-2.5 w-full rounded-pill bg-surface-bg-alt overflow-hidden">
                     <div
                       className={cn(
                         'h-full rounded-pill transition-all duration-300',
-                        barColor,
+                        // 계획 없이 지출만 있으면 회색으로 채워 '기준 없음'을 표현
+                        noPlan ? 'bg-ink-3/40' : barColor,
                       )}
                       style={{
-                        width: `${Math.min(pct, 100)}%`,
+                        width: noPlan
+                          ? spent > 0
+                            ? '100%'
+                            : '0%'
+                          : `${Math.min(pct, 100)}%`,
                       }}
                     />
                   </div>
@@ -426,19 +484,24 @@ export default function ProgressDashboardPage() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-ink">일자별 지출 추이</h3>
             <span className="text-xs text-ink-3">
-              {totalDays}일 중 {elapsedDays}일 진행
+              {undatedSpent > 0
+                ? `날짜 미지정 ${formatKRW(undatedSpent)}`
+                : progressLabel}
             </span>
           </div>
-          {dailyData.some((d) => d.amount > 0 || !d.isFuture) ? (
+          {dailyData.some((d) => d.amount > 0) ? (
             <div className="flex items-end justify-between gap-2 px-2 pt-6 pb-2">
               {dailyData.map((d, i) => {
                 const maxAmount = Math.max(...dailyData.map((dd) => dd.amount));
+                const hasSpent = d.amount > 0;
                 const barHeight =
-                  maxAmount > 0 && d.amount > 0
+                  maxAmount > 0 && hasSpent
                     ? Math.max(20, (d.amount / maxAmount) * 120)
                     : 24;
                 const isToday = i === elapsedDays - 1;
-                const isFuture = d.isFuture;
+                // 지출이 없는 미래 날짜만 "예정"으로 흐리게. 지출이 있으면
+                // 미래여도 금액을 그대로 보여준다(계획 단계 선지출 대비).
+                const isFuture = d.isFuture && !hasSpent;
 
                 return (
                   <div key={i} className="flex flex-col items-center flex-1">
@@ -452,7 +515,11 @@ export default function ProgressDashboardPage() {
                             : 'text-ink',
                       )}
                     >
-                      {isFuture ? '예정' : formatKRW(d.amount)}
+                      {hasSpent
+                        ? formatKRW(d.amount)
+                        : isFuture
+                          ? '예정'
+                          : '₩0'}
                     </span>
                     <div
                       className={cn(
@@ -521,8 +588,10 @@ export default function ProgressDashboardPage() {
                         {exp.description}
                       </p>
                       <p className="text-xs text-ink-3">
-                        {cat?.label} · {paidByName} 결제 · {members.length}명{' '}
-                        {exp.splitMethod === 'equal' ? '균등' : exp.splitMethod}
+                        {cat?.label} · {paidByName} 결제 ·{' '}
+                        {exp.splitMethod === 'none'
+                          ? '개인'
+                          : `${members.length}명 ${splitMethodLabel(exp.splitMethod)}`}
                       </p>
                     </div>
                     <div className="text-right shrink-0">

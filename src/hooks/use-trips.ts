@@ -57,6 +57,15 @@ export function useUpdateTrip(tripId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trips'] });
       queryClient.invalidateQueries({ queryKey: ['trips', tripId] });
+      // 기간 변경 시 Day가 서버에서 재조정되므로 일정/요약 캐시도 갱신한다.
+      queryClient.invalidateQueries({ queryKey: ['days', tripId] });
+      queryClient.invalidateQueries({ queryKey: ['days-overview', tripId] });
+      queryClient.invalidateQueries({ queryKey: ['plan-items', tripId] });
+      queryClient.invalidateQueries({ queryKey: ['day-summary', tripId] });
+      queryClient.invalidateQueries({ queryKey: ['expenses', tripId] });
+      queryClient.invalidateQueries({
+        queryKey: ['plan-cost-summary', tripId],
+      });
     },
   });
 }
