@@ -7,6 +7,7 @@ import { useIsDesktop } from '@/hooks/use-is-desktop';
 import { useAppStore } from '@/stores/app-store';
 import { useTrip, useUpdateTrip } from '@/hooks/use-trips';
 import { useMembers } from '@/hooks/use-members';
+import { toast } from '@/stores/toast-store';
 import { useParams, usePathname } from 'next/navigation';
 
 export default function TripLayout({
@@ -40,7 +41,13 @@ function TripLayoutInner({ children }: { children: React.ReactNode }) {
   const tripHeadcount = Math.max(trip?.headcount ?? 1, members.length, 1);
 
   function setTripDates(startDate: string, endDate: string) {
-    updateTripMut.mutate({ startDate, endDate });
+    updateTripMut.mutate(
+      { startDate, endDate },
+      {
+        onSuccess: () => toast.success('여행 기간을 변경했어요'),
+        onError: () => toast.error('여행 기간 변경에 실패했어요'),
+      },
+    );
   }
 
   const basePath = `/trip/${tripId}`;

@@ -49,3 +49,17 @@ export const SPLIT_METHOD = {
   EXACT: 'exact',
   NONE: 'none',
 } as const;
+
+/** 분담 방식 → 한글 라벨 */
+export const SPLIT_METHOD_LABELS: Record<string, string> = {
+  equal: '균등',
+  ratio: '비율',
+  shares: '지분',
+  exact: '금액지정',
+  none: '개인',
+};
+
+/** 분담 방식의 한글 라벨(모르는 값이면 그대로 반환). */
+export function splitMethodLabel(method: string): string {
+  return SPLIT_METHOD_LABELS[method] ?? method;
+}

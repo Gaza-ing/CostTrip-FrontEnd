@@ -928,8 +928,9 @@ function getDayLabelFromStart(dayIdx: number, tripStartDate: string): string {
   if (diffDays === 0) return '오늘';
   if (diffDays === 1) return '내일';
   if (diffDays === -1) return '어제';
-  if (diffDays > 0) return `D+${diffDays}`;
-  return `D${diffDays}`;
+  // D-day 관례: 아직 안 온 날(미래)은 D-N(N일 남음), 지난 날(과거)은 D+N(N일 지남)
+  if (diffDays > 0) return `D-${diffDays}`;
+  return `D+${Math.abs(diffDays)}`;
 }
 
 function getTimeDiff(start: string, end: string): string {

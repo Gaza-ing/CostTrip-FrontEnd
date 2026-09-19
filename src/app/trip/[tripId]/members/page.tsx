@@ -91,23 +91,30 @@ export default function MembersPage() {
   const inviteCode = invite?.inviteCode ?? '- - -';
   const inviteLink = invite?.inviteLink ?? '';
 
-  // 초대 패널 열 때 코드가 없으면 생성
+  // 초대 패널 열 때 코드가 없으면 생성 (소유자만 생성 가능)
   function openInvite() {
     setInviteOpen(true);
-    if (!invite) {
+    if (!invite && iAmOwner) {
       createInviteMut.mutate(
         { defaultRole: 'editor' },
-        { onSuccess: (data) => setInvite(data) },
+        {
+          onSuccess: (data) => setInvite(data),
+          onError: () => toast.error('초대 코드 생성에 실패했어요'),
+        },
       );
     }
   }
 
-  // 헤더 우측 액션: 그룹·멤버 페이지 전용 "멤버 초대" 버튼
+  // 헤더 우측 액션: 그룹·멤버 페이지 전용 "멤버 초대" 버튼.
+  // 초대(코드/링크/이메일)는 소유자만 가능하므로 소유자에게만 노출한다.
   useHeaderAction(
-    <HeaderActionButton onClick={openInvite}>
-      <Plus size={16} />
-      멤버 초대
-    </HeaderActionButton>,
+    iAmOwner ? (
+      <HeaderActionButton onClick={openInvite}>
+        <Plus size={16} />
+        멤버 초대
+      </HeaderActionButton>
+    ) : null,
+    [iAmOwner],
   );
 
   function handleCopyCode() {
@@ -454,7 +461,7 @@ export default function MembersPage() {
                   {inviteLink}
                 </p>
               </>
-            ) : (
+            ) : iAmOwner ? (
               <Button
                 fullWidth
                 size="sm"
@@ -462,12 +469,19 @@ export default function MembersPage() {
                 onClick={() =>
                   createInviteMut.mutate(
                     { defaultRole: 'editor' },
-                    { onSuccess: (data) => setInvite(data) },
+                    {
+                      onSuccess: (data) => setInvite(data),
+                      onError: () => toast.error('초대 코드 생성에 실패했어요'),
+                    },
                   )
                 }
               >
                 {createInviteMut.isPending ? '생성 중...' : '초대 코드 생성'}
               </Button>
+            ) : (
+              <p className="text-center text-xs text-ink-3">
+                초대 코드는 여행 소유자만 생성할 수 있어요.
+              </p>
             )}
           </Card>
 

@@ -4,9 +4,10 @@ import { Receipt, MousePointerClick, CircleDollarSign } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Avatar } from '@/components/ui/Avatar';
 import { HeaderActionButton } from '@/components/layout';
 import { useHeaderAction } from '@/hooks/use-header-action';
-import { CATEGORIES } from '@/lib/constants';
+import { CATEGORIES, splitMethodLabel } from '@/lib/constants';
 import { formatKRW, cn } from '@/lib/utils';
 import { selectMemberName } from '@/stores';
 import { useExpenses, useDeleteExpense } from '@/hooks/use-expenses';
@@ -21,9 +22,6 @@ import { useState, useMemo } from 'react';
 
 type SortKey = 'date' | 'amount';
 type SortDir = 'asc' | 'desc';
-
-// 멤버 아바타 색상
-const MEMBER_COLORS = ['#6366F1', '#10B981', '#F97316', '#EC4899'];
 
 export default function ExpenseListPage() {
   const params = useParams();
@@ -319,15 +317,13 @@ export default function ExpenseListPage() {
             <div className="divide-y divide-surface-line">
               {filteredExpenses.map((exp) => {
                 const cat = CATEGORIES.find((c) => c.id === exp.categoryId);
+                const paidByMember = members.find(
+                  (m) => m.id === exp.paidByMemberId,
+                );
                 const paidByName = selectMemberName(
                   allMembers,
                   exp.paidByMemberId,
                 );
-                const memberIdx = members.findIndex(
-                  (m) => m.id === exp.paidByMemberId,
-                );
-                const avatarColor =
-                  MEMBER_COLORS[memberIdx % MEMBER_COLORS.length] || '#6366F1';
                 const isRefund = exp.amount < 0;
                 const isSelected = selectedExpense === exp.id;
                 const dateStr = new Date(exp.createdAt).toLocaleDateString(
@@ -377,22 +373,23 @@ export default function ExpenseListPage() {
                       {cat?.label}
                     </Badge>
 
-                    {/* 결제자 아바타 */}
+                    {/* 결제자 아바타 (실제 프로필 색과 동기화) */}
                     <div className="flex justify-center">
-                      <div
-                        className="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold text-white"
-                        style={{ backgroundColor: avatarColor }}
+                      <Avatar
+                        name={paidByName}
+                        colorSeed={exp.paidByMemberId}
+                        color={paidByMember?.avatarColor ?? undefined}
+                        size={28}
+                        className="text-[10px]"
                         title={paidByName}
-                      >
-                        {paidByName.charAt(0)}
-                      </div>
+                      />
                     </div>
 
                     {/* 분담 */}
                     <span className="text-xs text-ink-2 text-center">
                       {exp.splitMethod === 'none'
                         ? '개인'
-                        : `${members.length}명 ${exp.splitMethod === 'equal' ? '균등' : exp.splitMethod}`}
+                        : `${members.length}명 ${splitMethodLabel(exp.splitMethod)}`}
                     </span>
 
                     {/* 금액 */}
@@ -470,22 +467,20 @@ export default function ExpenseListPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-ink-3">결제자</span>
                     <div className="flex items-center gap-2">
-                      <div
-                        className="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white"
-                        style={{
-                          backgroundColor:
-                            MEMBER_COLORS[
-                              members.findIndex(
-                                (m) => m.id === selectedExp.paidByMemberId,
-                              ) % MEMBER_COLORS.length
-                            ] || '#6366F1',
-                        }}
-                      >
-                        {selectMemberName(
+                      <Avatar
+                        name={selectMemberName(
                           allMembers,
                           selectedExp.paidByMemberId,
-                        ).charAt(0)}
-                      </div>
+                        )}
+                        colorSeed={selectedExp.paidByMemberId}
+                        color={
+                          members.find(
+                            (m) => m.id === selectedExp.paidByMemberId,
+                          )?.avatarColor ?? undefined
+                        }
+                        size={24}
+                        className="text-[10px]"
+                      />
                       <span className="text-sm font-medium text-ink">
                         {selectMemberName(
                           allMembers,
@@ -497,11 +492,9 @@ export default function ExpenseListPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-ink-3">분담 방식</span>
                     <span className="text-sm font-medium text-ink">
-                      {selectedExp.splitMethod === 'equal'
-                        ? `${members.length}명 균등`
-                        : selectedExp.splitMethod === 'none'
-                          ? '개인'
-                          : selectedExp.splitMethod}
+                      {selectedExp.splitMethod === 'none'
+                        ? '개인'
+                        : `${members.length}명 ${splitMethodLabel(selectedExp.splitMethod)}`}
                     </span>
                   </div>
                   {selectedExp.splitMethod === 'equal' &&
@@ -529,18 +522,15 @@ export default function ExpenseListPage() {
                   <div className="pt-3 border-t border-surface-line">
                     <p className="text-xs text-ink-3 mb-2">분담 멤버</p>
                     <div className="flex gap-1.5">
-                      {members.map((m, i) => (
-                        <div
+                      {members.map((m) => (
+                        <Avatar
                           key={m.id}
-                          className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white"
-                          style={{
-                            backgroundColor:
-                              MEMBER_COLORS[i % MEMBER_COLORS.length],
-                          }}
+                          name={m.displayName}
+                          colorSeed={m.id}
+                          color={m.avatarColor ?? undefined}
+                          size={32}
                           title={m.displayName}
-                        >
-                          {m.displayName.charAt(0)}
-                        </div>
+                        />
                       ))}
                     </div>
                   </div>

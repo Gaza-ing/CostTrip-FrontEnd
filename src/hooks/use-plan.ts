@@ -8,6 +8,7 @@ import {
   deletePlanItem,
   reorderPlanItems,
   fetchDaySummary,
+  fetchDaysOverview,
   fetchGapSuggestions,
   fetchRouteLegs,
   type PlanItemInput,
@@ -121,6 +122,15 @@ export function useDaySummary(tripId: string, dayId: string | undefined) {
     queryKey: ['day-summary', tripId, dayId],
     queryFn: () => fetchDaySummary(tripId, dayId as string),
     enabled: !!tripId && !!dayId,
+  });
+}
+
+/** 여행 전체 Day별 요약(메인 페이지 타임라인: 제목 목록 + 예상비용 합) */
+export function useDaysOverview(tripId: string) {
+  return useQuery({
+    queryKey: ['days-overview', tripId],
+    queryFn: () => fetchDaysOverview(tripId),
+    enabled: !!tripId,
   });
 }
 

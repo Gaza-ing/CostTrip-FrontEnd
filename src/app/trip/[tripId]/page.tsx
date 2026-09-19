@@ -12,9 +12,8 @@ import { formatKRW } from '@/lib/utils';
 import { useTrip } from '@/hooks/use-trips';
 import { useMembers } from '@/hooks/use-members';
 import { useMyProfile } from '@/hooks/use-my-profile';
-import { useExpenses } from '@/hooks/use-expenses';
-import { useBudgets } from '@/hooks/use-budgets';
-import { useDays } from '@/hooks/use-plan';
+import { useBudgets, usePlanCostSummary } from '@/hooks/use-budgets';
+import { useDays, useDaysOverview } from '@/hooks/use-plan';
 import {
   Plus,
   CalendarDays,
@@ -43,20 +42,21 @@ export default function TripMainPage() {
   const { data: allMembers = [] } = useMembers(tripId);
   // 인원/아바타는 실제 합류(accepted)한 멤버만. invited(수락 대기)는 제외.
   const members = allMembers.filter((m) => m.inviteStatus === 'accepted');
-  const { data: expenses = [] } = useExpenses(tripId);
+  const { data: planCostSummary } = usePlanCostSummary(tripId);
   const { data: budgetData, isLoading: budgetLoading } = useBudgets(tripId);
   const { data: days = [], isLoading: daysLoading } = useDays(
     tripId,
     trip?.startDate,
   );
+  const { data: daysOverview } = useDaysOverview(tripId);
+  // dayId → 요약(제목 목록 + 예상비용 합). 타임라인 한 줄 표시에 사용.
+  const overviewByDayId = new Map(
+    (daysOverview?.days ?? []).map((d) => [d.dayId, d]),
+  );
 
-  // 카테고리별 실지출
-  const spentByCategory: Record<string, number> = {};
-  for (const e of expenses) {
-    spentByCategory[e.categoryId] =
-      (spentByCategory[e.categoryId] || 0) + e.amount;
-  }
-  const spentTotal = expenses.reduce((s, e) => s + e.amount, 0);
+  // 카테고리별 예상 지출(일정의 예상비용 합계). 실지출은 진행 대시보드 담당.
+  const estimatedByCategory = planCostSummary?.byCategory ?? {};
+  const estimatedTotal = planCostSummary?.total ?? 0;
 
   // 예산
   const budgetCategories = CATEGORIES.map((cat, i) => ({
@@ -67,17 +67,20 @@ export default function TripMainPage() {
   }));
   const totalBudget = budgetData?.totalBudget ?? 0;
 
+  // 사용률/남은 예산은 예상 지출 기준
   const totalUsagePercent =
-    totalBudget > 0 ? Math.round((spentTotal / totalBudget) * 100) : 0;
-  const remaining = totalBudget - spentTotal;
+    totalBudget > 0 ? Math.round((estimatedTotal / totalBudget) * 100) : 0;
+  const remaining = totalBudget - estimatedTotal;
 
-  // 경고 항목 (실지출 기준)
+  // 경고 항목 (예상 지출 기준)
   const warnings = budgetCategories
     .map((bc) => {
       const cat = CATEGORIES.find((c) => c.id === bc.categoryId);
-      const spent = spentByCategory[bc.categoryId] || 0;
+      const estimated = estimatedByCategory[bc.categoryId] || 0;
       const pct =
-        bc.budgetAmount > 0 ? Math.round((spent / bc.budgetAmount) * 100) : 0;
+        bc.budgetAmount > 0
+          ? Math.round((estimated / bc.budgetAmount) * 100)
+          : 0;
       if (pct >= 100)
         return { name: cat?.label || '', status: '초과' as const, pct };
       if (pct >= 80)
@@ -115,26 +118,43 @@ export default function TripMainPage() {
           {hasDays ? (
             <Card padding="sm" shadow="sm">
               <div className="divide-y divide-surface-line">
-                {days.map((day, i) => (
-                  <Link
-                    key={day.id}
-                    href={`/trip/${tripId}/plan/${i}`}
-                    className="flex items-center gap-3 py-3 px-2 transition-colors hover:bg-surface-bg-alt rounded-xs"
-                  >
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm bg-surface-bg-alt text-ink-2">
-                      <CalendarDays size={16} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-ink truncate">
-                        Day {i + 1}
-                      </p>
-                      <p className="text-xs text-ink-3">
-                        {day.date || '일정을 확인하세요'}
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-xs text-ink-3">보기 →</span>
-                  </Link>
-                ))}
+                {days.map((day, i) => {
+                  const ov = overviewByDayId.get(day.id);
+                  const titleSummary = summarizeTitles(ov?.titles ?? []);
+                  return (
+                    <Link
+                      key={day.id}
+                      href={`/trip/${tripId}/plan/${i}`}
+                      className="flex items-center gap-3 rounded-xs px-2 py-3 transition-colors hover:bg-surface-bg-alt"
+                    >
+                      {/* 번호 배지 */}
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-surface-bg-alt text-sm font-semibold text-ink-2">
+                        {i + 1}
+                      </div>
+                      {/* Day · 날짜 + 일정 요약 */}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-ink">
+                          Day {i + 1}
+                          {day.date && (
+                            <span className="text-ink-2">
+                              {' · '}
+                              {formatMonthDay(day.date)}
+                            </span>
+                          )}
+                        </p>
+                        <p className="truncate text-xs text-ink-3">
+                          {titleSummary}
+                        </p>
+                      </div>
+                      {/* 당일 예상비용 */}
+                      <span className="shrink-0 text-sm font-semibold text-ink">
+                        {ov && ov.estimatedTotal > 0
+                          ? formatKRW(ov.estimatedTotal)
+                          : '-'}
+                      </span>
+                    </Link>
+                  );
+                })}
               </div>
             </Card>
           ) : (
@@ -179,12 +199,15 @@ export default function TripMainPage() {
                         strokeLinecap="round"
                       />
                     </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center px-2 text-center">
                       <span className="text-xl font-bold text-ink">
                         {totalUsagePercent}%
                       </span>
-                      <span className="text-xs text-ink-3">
-                        실지출 {formatKRW(spentTotal)}
+                      <span className="text-[11px] leading-tight text-ink-3">
+                        예상 지출
+                      </span>
+                      <span className="text-xs font-medium leading-tight text-ink-2">
+                        {formatKRW(estimatedTotal)}
                       </span>
                     </div>
                   </div>
@@ -212,7 +235,7 @@ export default function TripMainPage() {
                     className="mt-0.5 shrink-0 text-danger-text"
                   />
                   <p className="text-sm text-danger-text">
-                    <span className="text-ink-3">실지출 기준 · </span>
+                    <span className="text-ink-3">예상 지출 기준 · </span>
                     {warnings.map((w, i) => (
                       <span key={w!.name}>
                         {i > 0 && ' · '}
@@ -229,16 +252,16 @@ export default function TripMainPage() {
                     카테고리별 사용률
                   </h3>
                   <span className="text-xs text-ink-3 font-medium">
-                    · 실지출 기준
+                    · 예상 지출 기준
                   </span>
                 </div>
                 <div className="space-y-3">
                   {budgetCategories.map((bc) => {
                     const cat = CATEGORIES.find((c) => c.id === bc.categoryId);
-                    const spent = spentByCategory[bc.categoryId] || 0;
+                    const estimated = estimatedByCategory[bc.categoryId] || 0;
                     const pct =
                       bc.budgetAmount > 0
-                        ? Math.round((spent / bc.budgetAmount) * 100)
+                        ? Math.round((estimated / bc.budgetAmount) * 100)
                         : 0;
                     const status =
                       pct >= 100 ? 'danger' : pct >= 80 ? 'warn' : 'normal';
@@ -270,7 +293,8 @@ export default function TripMainPage() {
                           <span className="text-xs text-ink-3">
                             {pct}%{' '}
                             <small>
-                              {formatKRW(spent)}/{formatKRW(bc.budgetAmount)}
+                              {formatKRW(estimated)}/
+                              {formatKRW(bc.budgetAmount)}
                             </small>
                           </span>
                         </div>
@@ -295,6 +319,30 @@ export default function TripMainPage() {
       </div>
     </div>
   );
+}
+
+/** ISO date(YYYY-MM-DD) → "MM.DD" 표기(예: 2026-07-10 → 07.10). */
+function formatMonthDay(isoDate: string): string {
+  const parts = isoDate.split('-');
+  if (parts.length < 3) return isoDate;
+  return `${parts[1]}.${parts[2]}`;
+}
+
+// 타임라인 한 줄에 보여줄 최대 일정 제목 수. 초과분은 "외 N개"로 축약한다.
+const MAX_TIMELINE_TITLES = 3;
+
+/**
+ * 일정 제목 목록을 한 줄 요약 문자열로.
+ * - 없으면 "일정 없음"
+ * - 최대 개수까지는 "·"로 나열, 초과하면 "… 외 N개"로 축약한다.
+ *   (개수가 적어도 폭을 넘치면 CSS truncate가 추가로 말줄임 처리)
+ */
+function summarizeTitles(titles: string[]): string {
+  if (titles.length === 0) return '일정 없음';
+  if (titles.length <= MAX_TIMELINE_TITLES) return titles.join(' · ');
+  const shown = titles.slice(0, MAX_TIMELINE_TITLES).join(' · ');
+  const rest = titles.length - MAX_TIMELINE_TITLES;
+  return `${shown} … 외 ${rest}개`;
 }
 
 function PlanEmptyCard({ tripId }: { tripId: string }) {
