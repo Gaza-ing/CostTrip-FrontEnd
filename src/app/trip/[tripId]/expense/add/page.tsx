@@ -7,12 +7,16 @@ import { CATEGORIES } from '@/lib/constants';
 import { CategoryIcon } from '@/lib/category-icons';
 import { formatKRW, cn } from '@/lib/utils';
 import { useMembers } from '@/hooks/use-members';
-import { useCreateExpense } from '@/hooks/use-expenses';
+import {
+  useCreateExpense,
+  useUpdateExpense,
+  useExpenseDetail,
+} from '@/hooks/use-expenses';
 import { useTrip } from '@/hooks/use-trips';
 import { useDays } from '@/hooks/use-plan';
 import { toast } from '@/stores/toast-store';
-import { useParams, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 /** ISO date(YYYY-MM-DD) → "MM.DD" 표기. */
 function formatDayLabel(isoDate: string): string {
@@ -52,11 +56,16 @@ export default function ExpenseAddPage() {
   const params = useParams();
   const router = useRouter();
   const tripId = params.tripId as string;
+  const searchParams = useSearchParams();
+  const editId = searchParams.get('edit');
+  const isEdit = !!editId;
 
   const { data: members = [] } = useMembers(tripId);
   const { data: trip } = useTrip(tripId);
   const { data: days = [] } = useDays(tripId, trip?.startDate);
   const createExpenseMut = useCreateExpense(tripId);
+  const updateExpenseMut = useUpdateExpense(tripId);
+  const { data: editDetail } = useExpenseDetail(tripId, editId);
 
   const effectiveMembers = members;
   const isGroupTrip = effectiveMembers.length > 1;
@@ -79,6 +88,43 @@ export default function ExpenseAddPage() {
   >(isGroupTrip ? 'equal' : 'none');
   // 멤버별 가중치(ratio/shares) / 금액(exact) 입력값. key=memberId, value=문자열 입력.
   const [splitInputs, setSplitInputs] = useState<Record<string, string>>({});
+  // 편집 모드: 지출 상세를 불러오면 폼을 한 번 채운다.
+  const [prefilled, setPrefilled] = useState(false);
+  useEffect(() => {
+    if (!editDetail || prefilled) return;
+    // 패치된 지출 상세(외부 상태) → 폼 상태로 1회 동기화.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAmount(editDetail.amount ? editDetail.amount.toLocaleString() : '');
+    setTitle(editDetail.description ?? '');
+    setCategoryId(editDetail.categoryId);
+    setDayId(editDetail.dayId ?? '');
+    setPaidByMemberId(editDetail.paidByMemberId);
+    setMemo('');
+    const sm = editDetail.splitMethod;
+    setSplitMethod(sm);
+    // 발생 시각 분해(로컬)
+    const d = new Date(editDetail.createdAt);
+    if (!Number.isNaN(d.getTime())) {
+      const y = d.getFullYear();
+      const mo = String(d.getMonth() + 1).padStart(2, '0');
+      const da = String(d.getDate()).padStart(2, '0');
+      setSpentDate(`${y}-${mo}-${da}`);
+      setSpentTime(
+        `${String(d.getHours()).padStart(2, '0')}:${String(
+          d.getMinutes(),
+        ).padStart(2, '0')}`,
+      );
+    }
+    // ratio/exact는 기존 분담 금액으로 입력칸 프리필
+    if (sm === 'ratio' || sm === 'exact') {
+      const inputs: Record<string, string> = {};
+      for (const s of editDetail.shares) {
+        inputs[s.memberId] = String(s.shareAmount);
+      }
+      setSplitInputs(inputs);
+    }
+    setPrefilled(true);
+  }, [editDetail, prefilled]);
   const [receipts, setReceipts] = useState<File[]>([]);
 
   function setSplitInput(memberId: string, value: string) {
@@ -104,7 +150,7 @@ export default function ExpenseAddPage() {
 
   function handleSave() {
     // 이미 저장 요청이 진행 중이면 중복 제출 방지
-    if (createExpenseMut.isPending) return;
+    if (createExpenseMut.isPending || updateExpenseMut.isPending) return;
 
     const newErrors: { amount?: string; title?: string } = {};
     if (parsedAmount <= 0) newErrors.amount = '금액을 입력해주세요';
@@ -153,26 +199,39 @@ export default function ExpenseAddPage() {
       }
     }
 
-    createExpenseMut.mutate(
-      {
-        categoryId,
-        title: title.trim(),
-        amount: parsedAmount,
-        paidByMemberId: effectivePaidBy,
-        splitMethod,
-        isSettlementTarget: splitMethod !== 'none',
-        participantIds,
-        dayId: dayId || null,
-        spentAt: toIsoDateTime(spentDate, spentTime),
-        memo: memo.trim() || null,
-        weights,
-        exactAmounts,
-      },
-      {
-        onSuccess: () => router.push(`/trip/${tripId}/progress`),
-        onError: () => toast.error('지출 저장에 실패했습니다'),
-      },
-    );
+    const payload = {
+      categoryId,
+      title: title.trim(),
+      amount: parsedAmount,
+      paidByMemberId: effectivePaidBy,
+      splitMethod,
+      isSettlementTarget: splitMethod !== 'none',
+      participantIds,
+      dayId: dayId || null,
+      spentAt: toIsoDateTime(spentDate, spentTime),
+      memo: memo.trim() || null,
+      weights,
+      exactAmounts,
+    };
+
+    if (isEdit && editId) {
+      updateExpenseMut.mutate(
+        { expenseId: editId, input: payload },
+        {
+          onSuccess: () => {
+            toast.success('지출을 수정했어요');
+            router.push(`/trip/${tripId}/expense`);
+          },
+          onError: () => toast.error('지출 수정에 실패했습니다'),
+        },
+      );
+      return;
+    }
+
+    createExpenseMut.mutate(payload, {
+      onSuccess: () => router.push(`/trip/${tripId}/progress`),
+      onError: () => toast.error('지출 저장에 실패했습니다'),
+    });
   }
 
   function handleReceiptAdd(e: React.ChangeEvent<HTMLInputElement>) {
@@ -207,7 +266,9 @@ export default function ExpenseAddPage() {
         >
           <ArrowLeft size={16} />
         </button>
-        <h1 className="text-lg font-bold text-ink">지출 추가</h1>
+        <h1 className="text-lg font-bold text-ink">
+          {isEdit ? '지출 수정' : '지출 추가'}
+        </h1>
       </div>
 
       {/* 금액 */}
@@ -603,10 +664,14 @@ export default function ExpenseAddPage() {
       <button
         type="button"
         onClick={handleSave}
-        disabled={createExpenseMut.isPending}
+        disabled={createExpenseMut.isPending || updateExpenseMut.isPending}
         className="w-full h-12 rounded-sm bg-brand text-base font-semibold text-on-brand hover:bg-brand-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-brand"
       >
-        {createExpenseMut.isPending ? '저장 중...' : '저장'}
+        {createExpenseMut.isPending || updateExpenseMut.isPending
+          ? '저장 중...'
+          : isEdit
+            ? '수정 저장'
+            : '저장'}
       </button>
     </div>
   );

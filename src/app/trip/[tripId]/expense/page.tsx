@@ -538,7 +538,16 @@ export default function ExpenseListPage() {
 
                 {/* 수정/삭제 버튼 */}
                 <div className="flex gap-3 pt-4 border-t border-surface-line">
-                  <Button variant="secondary" fullWidth size="sm">
+                  <Button
+                    variant="secondary"
+                    fullWidth
+                    size="sm"
+                    onClick={() =>
+                      router.push(
+                        `/trip/${tripId}/expense/add?edit=${selectedExp.id}`,
+                      )
+                    }
+                  >
                     수정
                   </Button>
                   <Button
