@@ -125,3 +125,70 @@ export async function deleteExpense(
 ): Promise<void> {
   await apiClient.delete<void>(`/trips/${tripId}/expenses/${expenseId}`);
 }
+
+/** 백엔드 지출 상세 응답(분담 포함). */
+interface BackendExpenseDetail extends BackendExpense {
+  shares: { memberId: string; shareAmount: number; isSettled: boolean }[];
+}
+
+/** 지출 상세(분담 포함). 수정 화면 프리필에 사용. */
+export interface ExpenseDetail extends Expense {
+  /** 분담 멤버별 금액 (member id → share amount). */
+  shares: { memberId: string; shareAmount: number }[];
+}
+
+/** 지출 상세 조회(분담 포함, 카테고리 매핑). */
+export async function fetchExpenseDetail(
+  tripId: string,
+  expenseId: string,
+): Promise<ExpenseDetail> {
+  const [{ uuidToFront }, data] = await Promise.all([
+    buildCategoryMaps(tripId),
+    apiClient.get<BackendExpenseDetail>(
+      `/trips/${tripId}/expenses/${expenseId}`,
+    ),
+  ]);
+  const base = normalize(data, uuidToFront);
+  return {
+    ...base,
+    shares: (data.shares ?? []).map((s) => ({
+      memberId: s.memberId,
+      shareAmount: s.shareAmount,
+    })),
+  };
+}
+
+/** 지출 수정. 보낸 필드만 반영(부분 수정). 카테고리는 UUID로 변환해 전송. */
+export async function updateExpense(
+  tripId: string,
+  expenseId: string,
+  input: ExpenseInput,
+): Promise<Expense> {
+  const { uuidToFront, frontToUuid } = await buildCategoryMaps(tripId);
+  const categoryUuid =
+    frontToUuid.get(input.categoryId) ??
+    frontToUuid.get(toFrontCategory(toBackendCategory(input.categoryId)));
+
+  if (!categoryUuid) {
+    throw new Error('카테고리를 찾을 수 없습니다.');
+  }
+
+  const updated = await apiClient.patch<BackendExpense>(
+    `/trips/${tripId}/expenses/${expenseId}`,
+    {
+      categoryId: categoryUuid,
+      title: input.title,
+      amount: input.amount,
+      paidByMemberId: input.paidByMemberId,
+      splitMethod: input.splitMethod,
+      isSettlementTarget: input.isSettlementTarget,
+      dayId: input.dayId ?? null,
+      spentAt: input.spentAt ?? null,
+      memo: input.memo ?? null,
+      participantIds: input.participantIds,
+      weights: input.weights ?? null,
+      exactAmounts: input.exactAmounts ?? null,
+    },
+  );
+  return normalize(updated, uuidToFront);
+}

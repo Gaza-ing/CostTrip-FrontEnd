@@ -815,9 +815,18 @@ export default function PlanAddPage() {
                   </span>
                   <button
                     type="button"
-                    onClick={() =>
-                      setForm((f) => ({ ...f, lat: null, lng: null }))
-                    }
+                    onClick={() => {
+                      // 좌표뿐 아니라 장소명까지 비우고 검색창(PlaceSearch)을
+                      // 리마운트해 입력값까지 완전히 초기화한다.
+                      setForm((f) => ({
+                        ...f,
+                        place: '',
+                        lat: null,
+                        lng: null,
+                      }));
+                      setEstimate(null);
+                      setPlaceSearchKey((k) => k + 1);
+                    }}
                     className="ml-auto shrink-0 text-ink-3 hover:text-danger-text"
                   >
                     좌표 지우기
@@ -1120,6 +1129,7 @@ function SortablePlanRow({
         </span>
         <span className="shrink-0 text-xs tabular-nums text-ink-3">
           {item.startTime || '--:--'}
+          {item.endTime ? ` ~ ${item.endTime}` : ''}
         </span>
         <span className="flex min-w-0 flex-1 items-center gap-1.5">
           <span className="min-w-0 truncate text-sm font-medium text-ink">
